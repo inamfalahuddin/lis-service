@@ -7,6 +7,7 @@ enum StatusControlEnum: string
     case PASIEN_BARU_MASUK     = 'NI';
     case PASIEN_PINDAH_RUANGAN = 'UI';
     case PASIEN_PULANG         = 'PI';
+    case PASIEN_UPDATE         = 'UP';
 
     case STATUS_PASIEN_RAWAT_INAP  = 'IP';
     case STATUS_PASIEN_RAWAT_JALAN = 'OP';
