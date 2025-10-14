@@ -74,9 +74,20 @@ $api->version('v1', ['middleware' => ['api']], function (Router $api) {
             $api->get('/', 'App\Http\Controllers\RoleController@getAll');
         });
 
+
+        /*
+         * GET
+         */
+        $api->get('/result', 'App\Http\Controllers\ResultsController@info');
+        $api->get('/result/no_order', 'App\Http\Controllers\ResultsController@get_by_no_lab');
+        $api->get('/result/periode', 'App\Http\Controllers\ResultsController@get_by_periode');
+        $api->get('/result/mrn_periode', 'App\Http\Controllers\ResultsController@get_by_mrn_periode');
+
         /*
          * POST
          */
         $api->post('/order', 'App\Http\Controllers\OrderController@order');
+        $api->post('/order_me', 'App\Http\Controllers\OrderController@order_me');
+        $api->post('/pasien', 'App\Http\Controllers\PasienController@pasien');
     });
 });

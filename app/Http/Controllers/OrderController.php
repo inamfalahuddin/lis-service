@@ -28,6 +28,70 @@ class OrderController extends MshController
         ]);
     }
 
+    public function order_me(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'response.code' => ['required', 'string', 'max:20'],
+                'response.sampel.reg_no' => ['required', 'string', 'max:20'],
+            ]);
+
+
+            // Simulasi proses pencarian data
+            // $dataExists = $this->checkDataExists($validated); // Method untuk cek data di database
+
+            // if (!$dataExists) {
+            //     return response()->json([
+            //         'response' => [
+            //             'code' => '404',
+            //             'message' => 'Tidak Ada Data',
+            //             'product' => 'SOFTMEDIX LIS',
+            //             'version' => 'ws.003',
+            //             'id' => ''
+            //         ]
+            //     ], 404);
+            // }
+
+            return response()->json([
+                'message' => 'Body valid',
+                'data' => $validated
+            ]);
+
+            // Jika data ditemukan, return response 200 dengan format yang diharapkan
+            // return response()->json([
+            //     'response' => [
+            //         'code' => '200',
+            //         'message' => 'Sukses',
+            //         'product' => 'SOFTMEDIX LIS',
+            //         'version' => 'ws.003',
+            //         'id' => ''
+            //     ],
+            //     'payload' => $this->orderPayload($validated)
+            // ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'response' => [
+                    'code' => '404',
+                    'message' => 'Tidak Ada Data',
+                    'product' => 'SOFTMEDIX LIS',
+                    'version' => 'ws.003',
+                    'id' => '',
+                    'errors' => $e->errors()
+                ]
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'response' => [
+                    'code' => '500',
+                    'message' => 'Terjadi kesalahan sistem',
+                    'product' => 'SOFTMEDIX LIS',
+                    'version' => 'ws.003',
+                    'id' => ''
+                ]
+            ], 500);
+        }
+    }
+
     private function orderPayload($data)
     {
         $payload = [
@@ -60,13 +124,10 @@ class OrderController extends MshController
                     "bed_name" => "m_bed.nama",
                     "class_id" => "t_pelayanan.kelas_id",
                     "class_name" => "m_kelas.nama",
-                    "cito" => "t_lab_register.cito|N:Y", 
+                    "cito" => "t_lab_register.cito|N:Y",
                     "med_legal" => "N",
                     "user_id" => "t_lab_register.created_by",
                     "reserve1" => "",
-                    "reserve2" => "",
-                    "reserve3" => "",
-                    "reserve4" => "",
                     "order_test" => ["idtest1", "idtest2", "idtest3", "idtest4"]
                 ]
             ]
