@@ -1,19 +1,19 @@
 {
-    "name": "specialtactics/laravel-api-boilerplate",
-    "description": "An API boilerplate for Laravel",
+    "name": "LIS Service Laboratory",
+    "description": "An API for managing laboratory information systems softmedix",
     "keywords": [
         "laravel",
-        "boilerplate",
+        "softmedix",
         "api",
-        "api boilerplate",
+        "api lis service",
         "laravel api"
     ],
     "license": "MIT",
     "type": "project",
     "authors": [
         {
-            "name": "Max Snow",
-            "email": "contact@maxsnow.me"
+            "name": "In'am Falahuddin",
+            "email": "inamfalahuddin06@gmail.com"
         }
     ],
     "require": {

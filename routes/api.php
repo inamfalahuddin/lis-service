@@ -3,6 +3,7 @@
 use Dingo\Api\Routing\Router;
 use Illuminate\Http\Request;
 use Specialtactics\L5Api\Http\Middleware\CheckUserRole;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,8 +19,12 @@ use Specialtactics\L5Api\Http\Middleware\CheckUserRole;
 /*
  * Welcome route - link to any public API documentation here
  */
+// Route::get('/', function () {
+//     echo 'Welcome to our API';
+// });
+
 Route::get('/', function () {
-    echo 'Welcome to our API';
+    return view('welcome');
 });
 
 /** @var \Dingo\Api\Routing\Router $api */
@@ -68,5 +73,10 @@ $api->version('v1', ['middleware' => ['api']], function (Router $api) {
         $api->group(['prefix' => 'roles'], function (Router $api) {
             $api->get('/', 'App\Http\Controllers\RoleController@getAll');
         });
+
+        /*
+         * POST
+         */
+        $api->post('/order', 'App\Http\Controllers\OrderController@order');
     });
 });
