@@ -2,10 +2,39 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\HttpClientService;
 use Illuminate\Http\Request;
 
 class ResultsController extends MshController
 {
+    /**
+     * Build URI for LIS API
+     */
+    private function buildResultUri(string $endpoint, array $params = []): string
+    {
+        $baseUri = sprintf(
+            '/bridging/result/%s/%s',
+            env('LIS_USER_ID'),
+            env('LIS_SECRET_KEY')
+        );
+
+        $paramString = implode('/', $params);
+
+        return $endpoint . $baseUri . ($paramString ? '/' . $paramString : '');
+    }
+
+    /**
+     * Validate date period (max 30 days)
+     */
+    private function validatePeriod(string $startDate, string $endDate): bool
+    {
+        $start = \Carbon\Carbon::createFromFormat('Y-m-d', $startDate);
+        $end = \Carbon\Carbon::createFromFormat('Y-m-d', $endDate);
+
+        return $end->diffInDays($start) <= 30;
+    }
+
+
     public function info()
     {
         return response()->json([
@@ -48,10 +77,12 @@ class ResultsController extends MshController
             'no_lab' => ['required', 'string', 'max:20'],
         ]);
 
-        return response()->json([
-            'message' => 'Body valid',
-            'data' => $validated
-        ]);
+        $uri = $this->buildResultUri('no_lab', [$validated['no_lab']]);
+
+        $httpClient = app(HttpClientService::class);
+        $response = $httpClient->sendToLIS($uri, [], 'GET');
+
+        return response()->json($response, $response['status']);
     }
 
     public function get_by_periode(Request $request)
@@ -62,10 +93,7 @@ class ResultsController extends MshController
         ]);
 
         // Validasi tambahan: end_date tidak boleh lebih dari 30 hari dari start_date
-        $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['start_date']);
-        $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['end_date']);
-
-        if ($endDate->diffInDays($startDate) > 30) {
+        if (!$this->validatePeriod($validated['start_date'], $validated['end_date'])) {
             return response()->json([
                 'message' => 'Periode tidak boleh lebih dari 30 hari',
                 'errors' => [
@@ -74,10 +102,15 @@ class ResultsController extends MshController
             ], 422);
         }
 
-        return response()->json([
-            'message' => 'Body valid',
-            'data' => $validated
+        $uri = $this->buildResultUri('bridging/result_allperiode', [
+            $validated['start_date'],
+            $validated['end_date']
         ]);
+
+        $httpClient = app(HttpClientService::class);
+        $response = $httpClient->sendToLIS($uri, [], 'GET');
+
+        return response()->json($response, $response['status']);
     }
 
     public function get_by_mrn_periode(Request $request)
@@ -89,10 +122,7 @@ class ResultsController extends MshController
         ]);
 
         // Validasi tambahan: end_date tidak boleh lebih dari 30 hari dari start_date
-        $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['start_date']);
-        $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $validated['end_date']);
-
-        if ($endDate->diffInDays($startDate) > 30) {
+        if (!$this->validatePeriod($validated['start_date'], $validated['end_date'])) {
             return response()->json([
                 'message' => 'Periode tidak boleh lebih dari 30 hari',
                 'errors' => [
@@ -101,9 +131,15 @@ class ResultsController extends MshController
             ], 422);
         }
 
-        return response()->json([
-            'message' => 'Body valid',
-            'data' => $validated
+        $uri = $this->buildResultUri('bridging/result_mikroperiode', [
+            $validated['no_rm'],
+            $validated['start_date'],
+            $validated['end_date']
         ]);
+
+        $httpClient = app(HttpClientService::class);
+        $response = $httpClient->sendToLIS($uri, [], 'GET');
+
+        return response()->json($response, $response['status']);
     }
 }

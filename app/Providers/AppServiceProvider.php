@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Exceptions\ApiExceptionHandler;
 use Illuminate\Support\ServiceProvider;
+use App\Services\HttpClientService;
+
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -16,6 +18,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->registerExceptionHandler();
         $this->registerTelescope();
+        $this->registerHttpClientService();
     }
 
     /**
@@ -49,5 +52,21 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('local', 'testing')) {
             $this->app->register(TelescopeServiceProvider::class);
         }
+    }
+
+    /**
+     * Register HttpClientService for API calls
+     *
+     * @return void
+     */
+    protected function registerHttpClientService(): void
+    {
+        $this->app->singleton(HttpClientService::class, function ($app) {
+            return new HttpClientService();
+        });
+
+        $this->app->bind('http.client', function ($app) {
+            return $app->make(HttpClientService::class);
+        });
     }
 }

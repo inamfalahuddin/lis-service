@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\OrderControlEnum;
 use App\Enums\StatusControlEnum;
+use App\Models\MPasien;
 use App\Models\TLabRegister;
+use App\Services\HttpClientService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum;
 
@@ -18,53 +21,111 @@ class PasienController extends MshController
             'no_rm' => ['required', 'digits_between:4,15'],
         ]);
 
+        $raw = $this->get_data_pasien($validated['no_rm']);
+
+        if ($raw->isEmpty()) {
+            return response()->json([
+                'response' => [
+                    'code' => '404',
+                    'message' => 'Tidak Ada Data',
+                    'product' => 'SOFTMEDIX LIS',
+                    'version' => 'ws.003',
+                    'id' => ''
+                ]
+            ], 404);
+        }
+
+        $payload = $this->pasienPayload($raw->toArray(), $validated);
+
+        // return response()->json($payload);
+
+        $httpClient = app(HttpClientService::class);
+        $response = $httpClient->sendToLIS('bridging/other_pas', $payload, 'POST');
+
+        // Return response langsung dari LIS
+        if ($response['success']) {
+            if (is_array($response['data'])) {
+                return response()->json($response['data'], $response['status']);
+            }
+            return response($response['body'], $response['status'])
+                ->header('Content-Type', 'application/json');
+        }
+
         return response()->json([
-            'message' => 'Body valid',
-            'data' => $validated
-        ]);
+            'response' => [
+                'code' => (string) $response['status'],
+                'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                'product' => 'SOFTMEDIX LIS',
+                'version' => 'ws.003',
+                'id' => ''
+            ]
+        ], $response['status']);
     }
 
-    private function pasienPayload($data)
+    private function pasienPayload($data, $payload)
     {
-        $payload = [
-            "order" => [
-                "msh" => $this->getMshData(),
-                "pid" => [
-                    "pmrn" => "m_pasien.no_rm",
-                    "pname" => "m_pasien.nama",
-                    "sex" => "m_pasien.jenis_kelamin",
-                    "birth_dt" => "m_pasien.tanggal_lahir", // 24.04.1992
-                    "address" => "m_pasien.alamat",
-                    "no_tlp" => "m_pasien.no_telepon_1",
-                    "no_hp" => "m_pasien.no_telepon_2",
-                    "email" => "m_pasien.email",
-                    "nik" => "m_pasien.no_identitas"
-                ],
-                "obr" => [
-                    "order_control" => "ORDER_CONTROL",
-                    "ptype" => "STATUS_PASIEN_RAWAT_INAP",
-                    "reg_no" => "t_pelayanan.no_reg",
-                    "order_lab" => "t_lab_register.kode_transaksi",
-                    "provider_id" => "t_lab_register.cara_bayar_id",
-                    "provider_name" => "m_cara_bayar.nama",
-                    "order_date" => "t_lab_register.created_at|30.07.2025 15:24:11",
-                    "clinician_id" => "t_lab_register.dokter_id",
-                    "clinician_name" => "hrd_karyawan.nama",
-                    "bangsal_id" => "t_pelayanan.layanan_id",
-                    "bangsal_name" => "m_layanan.nama",
-                    "bed_id" => "t_pelayanan.bed_id",
-                    "bed_name" => "m_bed.nama",
-                    "class_id" => "t_pelayanan.kelas_id",
-                    "class_name" => "m_kelas.nama",
-                    "cito" => "t_lab_register.cito|N:Y",
-                    "med_legal" => "N",
-                    "user_id" => "t_lab_register.created_by",
-                    "reserve1" => "",
-                    "order_test" => ["idtest1", "idtest2", "idtest3", "idtest4"]
-                ]
-            ]
-        ];
+        $build = function ($item) use ($payload) {
+            $birthDate = null;
+            if (!empty($item->tanggal_lahir)) {
+                $birthDate = \Carbon\Carbon::createFromFormat('Y-m-d', $item->tanggal_lahir)->format('d.m.Y');
+            }
 
-        return $payload;
+            return [
+                "pasien" => [
+                    "msh" => $this->getMshData(),
+                    "pid" => [
+                        "pmrn"      => (string) $item->no_rm,
+                        "pname"     => (string) $item->nama,
+                        "sex"       => (string) $item->jenis_kelamin,
+                        "birth_dt"  => $birthDate,
+                        "address"   => (string) $item->alamat,
+                        "no_tlp"    => ($item->no_telepon_1 == '' ? '000000000' : (string) $item->no_telepon_1),
+                        "no_hp"     => ($item->no_telepon_2 == '' ? '000000000' : (string) $item->no_telepon_2),
+                        "email"     => (string) ($item->email ?? 'none@mail.com'),
+                        "nik"       => (string) $item->no_identitas
+                    ],
+                    "obr" => [
+                        "order_control" => (string) StatusControlEnum::fromName($payload['order_control'])->value,
+                        "user_id"       => (string) ($item->created_by ?? '000'),
+                        "reserve1"      => "",
+                        "reserve2"      => "",
+                        "reserve3"      => "",
+                        "reserve4"      => "",
+                    ]
+                ]
+            ];
+        };
+
+        if (is_iterable($data) && count($data) > 1) {
+            return array_map($build, $data);
+        }
+
+        $item = is_iterable($data) ? $data[0] : $data;
+        return $build($item);
+    }
+
+    private function get_data_pasien($no_rm)
+    {
+        $raw = DB::connection('mysql2')->table('m_pasien')->select(
+            'no_rm',
+            'nama',
+            DB::raw("
+                CASE 
+                    WHEN m_pasien.jenis_kelamin = 1 THEN 'L'
+                    WHEN m_pasien.jenis_kelamin = 2 THEN 'P'
+                    ELSE '-' 
+                END as jenis_kelamin
+            "),
+            'tanggal_lahir',
+            'alamat',
+            'no_telepon_1',
+            'no_telepon_2',
+            'no_identitas',
+            'created_by'
+        )
+            ->where('no_rm', $no_rm)
+            ->get();
+
+        return $raw;
     }
 }

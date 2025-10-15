@@ -13,7 +13,10 @@ enum StatusControlEnum: string
     case STATUS_PASIEN_RAWAT_JALAN = 'OP';
 
     case MEDLEGAL_YA = 'Y';
-    case MEDLEGAL_TIDAK = 'N';
+
+    case NEW_ORDER      = 'N';
+    case UPDATE_ORDER   = 'U';
+    case CANCEL_ORDER   = 'D';
 
     /**
      * Ambil daftar nilai valid enum (misal untuk validasi).
@@ -39,5 +42,10 @@ enum StatusControlEnum: string
         return collect(self::cases())
             ->mapWithKeys(fn($case) => [$case->name => $case->value])
             ->toArray();
+    }
+
+    public static function fromName(string $name): ?self
+    {
+        return self::tryFrom(self::nameValueMap()[$name] ?? null);
     }
 }
