@@ -67,6 +67,11 @@ class OrderController extends MshController
 
             $payload = $this->orderPayload($raw->toArray(), $validated);
 
+            // return response()->json([
+            //     'message' => 'Payload constructed',
+            //     'data' => $payload
+            // ], 200);
+
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - Payload constructed', [
                 'kode_transaksi' => $validated['kode_transaksi'],
                 'payload_keys' => array_keys($payload),
@@ -215,6 +220,11 @@ class OrderController extends MshController
                     ->format('d.m.Y H:i:s');
             }
 
+            $pemeriksaanList = [];
+            if (!empty($item->lab_pemeriksaan)) {
+                $pemeriksaanList = explode(',', $item->lab_pemeriksaan);
+            }
+
             return [
                 "order" => [
                     "msh" => $this->getMshData(),
@@ -253,7 +263,8 @@ class OrderController extends MshController
                         "reserve2"          => "",
                         "reserve3"          => "",
                         "reserve4"          => "",
-                        "order_test"        => ["idtest1", "idtest2", "idtest3", "idtest4"]
+                        "order_test"        => $pemeriksaanList
+                        // "order_test"        => ["idtest1", "idtest2", "idtest3", "idtest4"]
                     ]
                 ]
             ];
@@ -303,6 +314,15 @@ class OrderController extends MshController
                 'm_layanan.nama as layanan_nama',
                 'm_kelas.nama as kelas_nama',
                 'm_bed.nama as bed_nama',
+                DB::raw("
+                    (SELECT GROUP_CONCAT(kode SEPARATOR ',')
+                    FROM m_lab_pemeriksaan 
+                    WHERE id IN (
+                        SELECT pemeriksaan_id 
+                        FROM t_lab_register_pemeriksaan 
+                        WHERE reg_id = t_lab_register.id AND batal = 0
+                    )) AS lab_pemeriksaan
+                ")
             ])
             ->join('t_pelayanan', 't_pelayanan.id', '=', 't_lab_register.pelayanan_id')
             ->join('m_pasien', 'm_pasien.id', '=', 't_pelayanan.pasien_id')
