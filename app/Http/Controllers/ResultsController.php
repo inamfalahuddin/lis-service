@@ -13,7 +13,7 @@ class ResultsController extends MshController
     private function buildResultUri(string $endpoint, array $params = []): string
     {
         $baseUri = sprintf(
-            '/bridging/result/%s/%s',
+            '/%s/%s',
             env('LIS_USER_ID'),
             env('LIS_SECRET_KEY')
         );
@@ -77,11 +77,12 @@ class ResultsController extends MshController
             'no_lab' => ['required', 'string', 'max:20'],
         ]);
 
-        $uri = $this->buildResultUri('no_lab', [$validated['no_lab']]);
+        $uri = $this->buildResultUri('bridging/result', [$validated['no_lab']]);
 
         $httpClient = app(HttpClientService::class);
         $response = $httpClient->sendToLIS($uri, [], 'GET');
 
+        // return response()->json($response['data']);
         return response()->json($response, $response['status']);
     }
 
@@ -132,6 +133,36 @@ class ResultsController extends MshController
         }
 
         $uri = $this->buildResultUri('bridging/result_mikroperiode', [
+            $validated['no_rm'],
+            $validated['start_date'],
+            $validated['end_date']
+        ]);
+
+        $httpClient = app(HttpClientService::class);
+        $response = $httpClient->sendToLIS($uri, [], 'GET');
+
+        return response()->json($response, $response['status']);
+    }
+
+    public function get_by_mrn_all_periode(Request $request)
+    {
+        $validated = $request->validate([
+            'no_rm' => ['required', 'string', 'max:20'],
+            'start_date' => ['required', 'date_format:Y-m-d'],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+        ]);
+
+        // Validasi tambahan: end_date tidak boleh lebih dari 30 hari dari start_date
+        if (!$this->validatePeriod($validated['start_date'], $validated['end_date'])) {
+            return response()->json([
+                'message' => 'Periode tidak boleh lebih dari 30 hari',
+                'errors' => [
+                    'end_date' => ['Maksimal periode adalah 30 hari']
+                ]
+            ], 422);
+        }
+
+        $uri = $this->buildResultUri('wslis/bridging/result_allperiode', [
             $validated['no_rm'],
             $validated['start_date'],
             $validated['end_date']
