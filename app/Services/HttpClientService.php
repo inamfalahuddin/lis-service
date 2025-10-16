@@ -99,6 +99,8 @@ class HttpClientService
         $baseUrl = env('LIS_BASE_URL');
         $url = rtrim($baseUrl, '/') . '/' . ltrim($endpoint, '/');
 
+        // var_dump("Sending to LIS: $method $url");
+
         return $this->sendRequest($method, $url, $payload);
     }
 

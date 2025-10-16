@@ -82,7 +82,7 @@ $api->version('v1', ['middleware' => ['api']], function (Router $api) {
         $api->get('/result/no_order', 'App\Http\Controllers\ResultsController@get_by_no_lab');
         $api->get('/result/periode', 'App\Http\Controllers\ResultsController@get_by_periode');
         $api->get('/result/mrn_periode', 'App\Http\Controllers\ResultsController@get_by_mrn_periode');
-        $api->get('/result/mrn_all_periode', 'App\Http\Controllers\ResultsController@get_by_mrn_all_periode');
+        $api->get('/result/all_periode', 'App\Http\Controllers\ResultsController@get_by_mrn_all_periode');
 
         /*
          * POST
