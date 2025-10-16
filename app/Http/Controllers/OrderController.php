@@ -16,64 +16,124 @@ class OrderController extends MshController
 
     public function order(Request $request)
     {
-        $validated = $request->validate([
-            'order_control' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
-            'status_pasien' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
-            'kode_transaksi' => ['required', 'array', 'min:1'],
-            'kode_transaksi.*' => ['string'],
+        Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Request received', [
+            'method' => 'order',
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'input' => $request->all()
         ]);
 
-        Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Validation success', [
-            'kode_transaksi_count' => count($validated['kode_transaksi']),
-            'order_control' => $validated['order_control'],
-            'status_pasien' => $validated['status_pasien']
-        ]);
+        try {
+            $validated = $request->validate([
+                'order_control' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
+                'status_pasien' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
+                'kode_transaksi' => ['required', 'string', 'max:50'], // Diubah dari array ke string
+            ]);
 
-        $transactionCodes = $validated['kode_transaksi'];
-        $raw = $this->get_data_register($transactionCodes);
+            Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Validation success', [
+                'kode_transaksi' => $validated['kode_transaksi'], // Sekarang langsung string
+                'order_control' => $validated['order_control'],
+                'status_pasien' => $validated['status_pasien']
+            ]);
 
-        // Cek jika data tidak ditemukan
-        if ($raw->isEmpty()) {
+            // Karena kode_transaksi sekarang string, kita wrap ke array untuk kompatibilitas dengan method get_data_register
+            $transactionCodes = [$validated['kode_transaksi']];
+            $raw = $this->get_data_register($transactionCodes);
+
+            // Cek jika data tidak ditemukan
+            if ($raw->isEmpty()) {
+                Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - Data not found', [
+                    'kode_transaksi' => $validated['kode_transaksi'],
+                    'data_count' => $raw->count()
+                ]);
+
+                return response()->json([
+                    'response' => [
+                        'code' => '404',
+                        'message' => 'Tidak Ada Data',
+                        'product' => 'SOFTMEDIX LIS',
+                        'version' => 'ws.003',
+                        'id' => ''
+                    ]
+                ], 404);
+            }
+
+            Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Data retrieved successfully', [
+                'kode_transaksi' => $validated['kode_transaksi'],
+                'data_count' => $raw->count(),
+                'no_rm' => $raw->first()->no_rm ?? 'N/A',
+                'pasien_nama' => $raw->first()->pasien_nama ?? 'N/A'
+            ]);
+
+            $payload = $this->orderPayload($raw->toArray(), $validated);
+
+            Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - Payload constructed', [
+                'kode_transaksi' => $validated['kode_transaksi'],
+                'payload_keys' => array_keys($payload),
+                'reg_no' => $payload['order']['obr']['reg_no'] ?? 'N/A'
+            ]);
+
+            $httpClient = app(HttpClientService::class);
+
+            Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Sending to LIS', [
+                'kode_transaksi' => $validated['kode_transaksi'],
+                'endpoint' => 'bridging/order',
+                'order_control' => $validated['order_control']
+            ]);
+
+            $response = $httpClient->sendToLIS('bridging/order', $payload, 'POST');
+
+            // Return response langsung dari LIS
+            if ($response['success']) {
+                Log::channel(self::LOG_PREFIX . ' - LIS response success', [
+                    'kode_transaksi' => $validated['kode_transaksi'],
+                    'status_code' => $response['status'],
+                    'response_type' => gettype($response['data'])
+                ]);
+
+                // Jika LIS mengembalikan response JSON, return langsung
+                if (is_array($response['data'])) {
+                    return response()->json($response['data'], $response['status']);
+                }
+
+                // Jika LIS mengembalikan string/plain text
+                return response($response['body'], $response['status'])
+                    ->header('Content-Type', 'application/json');
+            }
+
+            // Jika gagal kirim ke LIS
+            Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - LIS request failed', [
+                'kode_transaksi' => $validated['kode_transaksi'],
+                'status_code' => $response['status'],
+                'error' => $response['error'] ?? 'Unknown error',
+                'response_body' => $response['body'] ?? null
+            ]);
+
             return response()->json([
                 'response' => [
-                    'code' => '404',
-                    'message' => 'Tidak Ada Data',
+                    'code' => (string) $response['status'],
+                    'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
                     'product' => 'SOFTMEDIX LIS',
                     'version' => 'ws.003',
                     'id' => ''
                 ]
-            ], 404);
+            ], $response['status']);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - Validation failed', [
+                'errors' => $e->errors(),
+                'input' => $request->all()
+            ]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - Unexpected error', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'kode_transaksi' => $request->input('kode_transaksi')
+            ]);
+            throw $e;
         }
-
-        $payload = $this->orderPayload($raw->toArray(), $validated);
-
-        // return response()->json($payload);
-
-        $httpClient = app(HttpClientService::class);
-        $response = $httpClient->sendToLIS('bridging/order', $payload, 'POST');
-
-        // Return response langsung dari LIS
-        if ($response['success']) {
-            // Jika LIS mengembalikan response JSON, return langsung
-            if (is_array($response['data'])) {
-                return response()->json($response['data'], $response['status']);
-            }
-
-            // Jika LIS mengembalikan string/plain text
-            return response($response['body'], $response['status'])
-                ->header('Content-Type', 'application/json');
-        }
-
-        // Jika gagal kirim ke LIS
-        return response()->json([
-            'response' => [
-                'code' => (string) $response['status'],
-                'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
-                'product' => 'SOFTMEDIX LIS',
-                'version' => 'ws.003',
-                'id' => ''
-            ]
-        ], $response['status']);
     }
 
     public function order_me(Request $request)

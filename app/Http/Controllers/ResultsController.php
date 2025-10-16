@@ -38,6 +38,25 @@ class ResultsController extends MshController
         return $end->diffInDays($start) <= 30;
     }
 
+    /**
+     * Format date from Y-m-d to Ymd for LIS API
+     */
+    private function formatDateForUri(string $date): string
+    {
+        return \Carbon\Carbon::createFromFormat('Y-m-d', $date)->format('Ymd');
+    }
+
+    /**
+     * Build date range string for LIS API (YYYYMMDD-YYYYMMDD)
+     */
+    private function buildDateRange(string $startDate, string $endDate): string
+    {
+        $start = $this->formatDateForUri($startDate);
+        $end = $this->formatDateForUri($endDate);
+
+        return $start . '-' . $end;
+    }
+
     public function info()
     {
         Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Info endpoint accessed');
@@ -107,17 +126,35 @@ class ResultsController extends MshController
                 Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - LIS response success for no_lab', [
                     'no_lab' => $validated['no_lab'],
                     'status_code' => $response['status'],
-                    'data_count' => is_array($response['data']) ? count($response['data']) : 'N/A'
+                    'response_type' => gettype($response['data'])
                 ]);
+
+                // Return response asli dari LIS tanpa wrapper
+                if (is_array($response['data'])) {
+                    return response()->json($response['data'], $response['status']);
+                }
+
+                // Jika response berupa string/JSON string, kembalikan langsung
+                return response($response['body'], $response['status'])
+                    ->header('Content-Type', 'application/json');
             } else {
                 Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - LIS request failed for no_lab', [
                     'no_lab' => $validated['no_lab'],
                     'status_code' => $response['status'],
                     'error' => $response['error'] ?? 'Unknown error'
                 ]);
-            }
 
-            return response()->json($response, $response['status']);
+                // Return error response dalam format yang sama dengan LIS
+                return response()->json([
+                    'response' => [
+                        'code' => (string) $response['status'],
+                        'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                        'product' => 'SOFTMEDIX LIS',
+                        'version' => 'ws.003',
+                        'id' => ''
+                    ]
+                ], $response['status']);
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - No lab validation failed', [
                 'errors' => $e->errors(),
@@ -171,9 +208,9 @@ class ResultsController extends MshController
                 ], 422);
             }
 
+            $dateRange = $this->buildDateRange($validated['start_date'], $validated['end_date']);
             $uri = $this->buildResultUri('bridging/result_allperiode', [
-                $validated['start_date'],
-                $validated['end_date']
+                $dateRange
             ]);
 
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - URI constructed for periode', [
@@ -192,6 +229,35 @@ class ResultsController extends MshController
                     'status_code' => $response['status'],
                     'data_count' => is_array($response['data']) ? count($response['data']) : 'N/A'
                 ]);
+
+                // Return response asli dari LIS tanpa wrapper
+                if (is_array($response['data'])) {
+                    return response()->json($response['data'], $response['status']);
+                }
+
+                // Clean response body dari HTML errors sebelum dikembalikan
+                $cleanedBody = $this->cleanResponseBody($response['body']);
+
+                // Jika setelah cleaning body kosong, kembalikan error response
+                if (empty(trim($cleanedBody))) {
+                    Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - LIS response body empty after cleaning', [
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date']
+                    ]);
+
+                    return response()->json([
+                        'response' => [
+                            'code' => '500',
+                            'message' => 'Response dari LIS tidak valid',
+                            'product' => 'SOFTMEDIX LIS',
+                            'version' => 'ws.003',
+                            'id' => ''
+                        ]
+                    ], 500);
+                }
+
+                return response($cleanedBody, $response['status'])
+                    ->header('Content-Type', 'application/json');
             } else {
                 Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - LIS request failed for periode', [
                     'start_date' => $validated['start_date'],
@@ -199,9 +265,18 @@ class ResultsController extends MshController
                     'status_code' => $response['status'],
                     'error' => $response['error'] ?? 'Unknown error'
                 ]);
-            }
 
-            return response()->json($response, $response['status']);
+                // Return error response dalam format yang sama dengan LIS
+                return response()->json([
+                    'response' => [
+                        'code' => (string) $response['status'],
+                        'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                        'product' => 'SOFTMEDIX LIS',
+                        'version' => 'ws.003',
+                        'id' => ''
+                    ]
+                ], $response['status']);
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - Periode validation failed', [
                 'errors' => $e->errors(),
@@ -259,10 +334,10 @@ class ResultsController extends MshController
                 ], 422);
             }
 
-            $uri = $this->buildResultUri('bridging/result_mikroperiode', [
+            $dateRange = $this->buildDateRange($validated['start_date'], $validated['end_date']);
+            $uri = $this->buildResultUri('bridging/result_mrnperiode', [
                 $validated['no_rm'],
-                $validated['start_date'],
-                $validated['end_date']
+                $dateRange
             ]);
 
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - URI constructed for MRN periode', [
@@ -283,6 +358,35 @@ class ResultsController extends MshController
                     'status_code' => $response['status'],
                     'data_count' => is_array($response['data']) ? count($response['data']) : 'N/A'
                 ]);
+
+                // Return response asli dari LIS tanpa wrapper
+                if (is_array($response['data'])) {
+                    return response()->json($response['data'], $response['status']);
+                }
+
+                // Clean response body dari HTML errors sebelum dikembalikan
+                $cleanedBody = $this->cleanResponseBody($response['body']);
+
+                if (empty(trim($cleanedBody))) {
+                    Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - LIS response body empty after cleaning', [
+                        'no_rm' => $validated['no_rm'],
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date']
+                    ]);
+
+                    return response()->json([
+                        'response' => [
+                            'code' => '500',
+                            'message' => 'Response dari LIS tidak valid',
+                            'product' => 'SOFTMEDIX LIS',
+                            'version' => 'ws.003',
+                            'id' => ''
+                        ]
+                    ], 500);
+                }
+
+                return response($cleanedBody, $response['status'])
+                    ->header('Content-Type', 'application/json');
             } else {
                 Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - LIS request failed for MRN periode', [
                     'no_rm' => $validated['no_rm'],
@@ -291,9 +395,18 @@ class ResultsController extends MshController
                     'status_code' => $response['status'],
                     'error' => $response['error'] ?? 'Unknown error'
                 ]);
-            }
 
-            return response()->json($response, $response['status']);
+                // Return error response dalam format yang sama dengan LIS
+                return response()->json([
+                    'response' => [
+                        'code' => (string) $response['status'],
+                        'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                        'product' => 'SOFTMEDIX LIS',
+                        'version' => 'ws.003',
+                        'id' => ''
+                    ]
+                ], $response['status']);
+            }
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - MRN periode validation failed', [
                 'errors' => $e->errors(),
@@ -352,10 +465,9 @@ class ResultsController extends MshController
                 ], 422);
             }
 
+            $dateRange = $this->buildDateRange($validated['start_date'], $validated['end_date']);
             $uri = $this->buildResultUri('wslis/bridging/result_allperiode', [
-                $validated['no_rm'],
-                $validated['start_date'],
-                $validated['end_date']
+                $dateRange
             ]);
 
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - URI constructed for MRN all periode', [
@@ -404,5 +516,21 @@ class ResultsController extends MshController
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Clean response body from HTML errors and other noise
+     */
+    private function cleanResponseBody($body)
+    {
+        if (is_string($body)) {
+            $cleaned = preg_replace('/<div style="border:1px solid #990000;.*?<\/div>/s', '', $body);
+            $cleaned = preg_replace('/<[^>]*>/', '', $cleaned);
+            $cleaned = trim($cleaned);
+
+            return $cleaned ?: $body;
+        }
+
+        return $body;
     }
 }
