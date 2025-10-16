@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Enums\StatusControlEnum;
-use App\Models\TLabRegister;
 use App\Services\HttpClientService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends MshController
 {
+    const LOG_CHANNEL   = 'order';
+    const LOG_PREFIX    = 'ORDER_CONTROLLER';
+
     public function order(Request $request)
     {
         $validated = $request->validate([
@@ -18,6 +21,12 @@ class OrderController extends MshController
             'status_pasien' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
             'kode_transaksi' => ['required', 'array', 'min:1'],
             'kode_transaksi.*' => ['string'],
+        ]);
+
+        Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Validation success', [
+            'kode_transaksi_count' => count($validated['kode_transaksi']),
+            'order_control' => $validated['order_control'],
+            'status_pasien' => $validated['status_pasien']
         ]);
 
         $transactionCodes = $validated['kode_transaksi'];
