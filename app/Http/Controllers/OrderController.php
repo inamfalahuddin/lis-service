@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\ApiLog;
+use Illuminate\Support\Str;
 
 class OrderController extends MshController
 {
@@ -16,27 +18,52 @@ class OrderController extends MshController
 
     public function order(Request $request)
     {
+        $startTime = microtime(true);
+        $requestId = Str::uuid()->toString();
+
+        $validated = $request->validate([
+            'order_control' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
+            'status_pasien' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
+            'kode_transaksi' => ['required', 'string', 'max:50'],
+        ]);
+
         Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Request received', [
             'method' => 'order',
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'input' => $request->all()
+            'input' => $request->all(),
+            'request_id' => $requestId
+        ]);
+
+        // Buat log awal dengan status pending
+        $apiLog = ApiLog::create([
+            'service_name' => 'LIS_ORDER_SERVICE',
+            'method' => $request->method(),
+            'endpoint' => $request->fullUrl(),
+            'payload' => ['message' => 'Kode lab sepertinya tidak ada di database kami'],
+            'status_code' => null,
+            'status' => 'pending',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'request_id' => $requestId,
+            'response_time' => null,
+            'created_at' => now(),
+            'updated_at' => now()
         ]);
 
         try {
-            $validated = $request->validate([
-                'order_control' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
-                'status_pasien' => ['required', Rule::in(array_column(StatusControlEnum::cases(), 'name'))],
-                'kode_transaksi' => ['required', 'string', 'max:50'], // Diubah dari array ke string
-            ]);
-
             Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Validation success', [
-                'kode_transaksi' => $validated['kode_transaksi'], // Sekarang langsung string
+                'kode_transaksi' => $validated['kode_transaksi'],
                 'order_control' => $validated['order_control'],
                 'status_pasien' => $validated['status_pasien']
             ]);
 
-            // Karena kode_transaksi sekarang string, kita wrap ke array untuk kompatibilitas dengan method get_data_register
+            // Update log dengan info validasi sukses
+            $apiLog->update([
+                'payload->validation' => $validated,
+                'updated_at' => now()
+            ]);
+
             $transactionCodes = [$validated['kode_transaksi']];
             $raw = $this->get_data_register($transactionCodes);
 
@@ -45,6 +72,24 @@ class OrderController extends MshController
                 Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - Data not found', [
                     'kode_transaksi' => $validated['kode_transaksi'],
                     'data_count' => $raw->count()
+                ]);
+
+                $responseTime = round((microtime(true) - $startTime) * 1000, 3);
+
+                // Update log untuk response 404
+                $apiLog->update([
+                    'response' => [
+                        'code' => '404',
+                        'message' => 'Tidak Ada Data',
+                        'product' => 'SOFTMEDIX LIS',
+                        'version' => 'ws.003',
+                        'id' => ''
+                    ],
+                    'status_code' => 404,
+                    'status' => 'error',
+                    'error_message' => 'Data not found for kode_transaksi: ' . $validated['kode_transaksi'],
+                    'response_time' => $responseTime,
+                    'updated_at' => now()
                 ]);
 
                 return response()->json([
@@ -67,11 +112,6 @@ class OrderController extends MshController
 
             $payload = $this->orderPayload($raw->toArray(), $validated);
 
-            // return response()->json([
-            //     'message' => 'Payload constructed',
-            //     'data' => $payload
-            // ], 200);
-
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - Payload constructed', [
                 'kode_transaksi' => $validated['kode_transaksi'],
                 'payload_keys' => array_keys($payload),
@@ -86,9 +126,16 @@ class OrderController extends MshController
                 'order_control' => $validated['order_control']
             ]);
 
+            $apiLog->update([
+                'payload' => $payload,
+                'updated_at' => now()
+            ]);
+
             $response = $httpClient->sendToLIS('bridging/order', $payload, 'POST');
 
-            // Return response langsung dari LIS
+            $responseTime = round((microtime(true) - $startTime) * 1000, 3);
+
+            // Handle response dari LIS
             if ($response['success']) {
                 Log::channel(self::LOG_PREFIX . ' - LIS response success', [
                     'kode_transaksi' => $validated['kode_transaksi'],
@@ -96,12 +143,20 @@ class OrderController extends MshController
                     'response_type' => gettype($response['data'])
                 ]);
 
-                // Jika LIS mengembalikan response JSON, return langsung
+                // Update log untuk success response
+                $apiLog->update([
+                    'response' => is_array($response['data']) ? $response['data'] : ['raw_response' => $response['body']],
+                    'status_code' => $response['status'],
+                    'status' => 'success',
+                    'response_time' => $responseTime,
+                    'updated_at' => now()
+                ]);
+
+                // Return response langsung dari LIS
                 if (is_array($response['data'])) {
                     return response()->json($response['data'], $response['status']);
                 }
 
-                // Jika LIS mengembalikan string/plain text
                 return response($response['body'], $response['status'])
                     ->header('Content-Type', 'application/json');
             }
@@ -114,6 +169,22 @@ class OrderController extends MshController
                 'response_body' => $response['body'] ?? null
             ]);
 
+            // Update log untuk error response
+            $apiLog->update([
+                'response' => [
+                    'code' => (string) $response['status'],
+                    'message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                    'product' => 'SOFTMEDIX LIS',
+                    'version' => 'ws.003',
+                    'id' => ''
+                ],
+                'status_code' => $response['status'],
+                'status' => 'error',
+                'error_message' => $response['error'] ?? 'Gagal terhubung ke server LIS',
+                'response_time' => $responseTime,
+                'updated_at' => now()
+            ]);
+
             return response()->json([
                 'response' => [
                     'code' => (string) $response['status'],
@@ -124,12 +195,27 @@ class OrderController extends MshController
                 ]
             ], $response['status']);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            $responseTime = round((microtime(true) - $startTime) * 1000, 3);
+
             Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - Validation failed', [
                 'errors' => $e->errors(),
                 'input' => $request->all()
             ]);
+
+            // Update log untuk validation error
+            $apiLog->update([
+                'response' => ['errors' => $e->errors()],
+                'status_code' => 422,
+                'status' => 'error',
+                'error_message' => 'Validation failed: ' . json_encode($e->errors()),
+                'response_time' => $responseTime,
+                'updated_at' => now()
+            ]);
+
             throw $e;
         } catch (\Exception $e) {
+            $responseTime = round((microtime(true) - $startTime) * 1000, 3);
+
             Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - Unexpected error', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
@@ -137,6 +223,16 @@ class OrderController extends MshController
                 'trace' => $e->getTraceAsString(),
                 'kode_transaksi' => $request->input('kode_transaksi')
             ]);
+
+            // Update log untuk unexpected error
+            $apiLog->update([
+                'status_code' => 500,
+                'status' => 'error',
+                'error_message' => $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine(),
+                'response_time' => $responseTime,
+                'updated_at' => now()
+            ]);
+
             throw $e;
         }
     }
@@ -305,7 +401,8 @@ class OrderController extends MshController
                     END as jenis_kelamin
                 "),
                 'm_pasien.tanggal_lahir',
-                'm_pasien.alamat',
+                // 'm_pasien.alamat',
+                DB::raw("SUBSTRING_INDEX(m_pasien.alamat, ' ', 10) as alamat"),
                 'm_pasien.no_telepon_1',
                 'm_pasien.no_telepon_2',
                 'm_pasien.no_identitas',

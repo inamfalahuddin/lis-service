@@ -1,0 +1,7 @@
+docker exec -it service_his_workspace bash
+php artisan migrate
+
+docker exec -it service_his_workspace bash
+php artisan db:seed
+
+exit

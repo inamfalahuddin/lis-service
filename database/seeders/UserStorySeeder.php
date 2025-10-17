@@ -20,17 +20,30 @@ class UserStorySeeder extends BaseSeeder
         $roles = Role::all();
 
         // Create an admin user
-        \App\Models\User::factory()->create([
-            'name'         => 'Admin',
-            'email'        => static::ADMIN_CREDENTIALS['email'],
-            'primary_role' => $roles->where('name', 'admin')->first()->role_id,
-        ]);
+        // \App\Models\User::factory()->create([
+        //     'name'         => 'Admin',
+        //     'email'        => static::ADMIN_CREDENTIALS['email'],
+        //     'primary_role' => $roles->where('name', 'admin')->first()->role_id,
+        // ]);
 
         // Create regular user
-        \App\Models\User::factory()->create([
-            'name'         => 'Bob',
-            'email'        => 'bob@bob.com',
-            'primary_role' => $roles->where('name', 'regular')->first()->role_id,
+        // \App\Models\User::factory()->create([
+        //     'name'         => 'Bob',
+        //     'email'        => 'bob@bob.com',
+        //     'primary_role' => $roles->where('name', 'regular')->first()->role_id,
+        // ]);
+
+        // Create an admin user with manual UUID
+        User::create([
+            'user_id'         => 'b13c58ee-ecb0-47c7-a8c4-65b4b4a01a38',
+            'name'            => 'Admin',
+            'email'           => static::ADMIN_CREDENTIALS['email'],
+            'email_verified_at' => now(),
+            'password'        => '$2y$12$oxVEYjMOUmFy.JGIfVx/vu4FRP1Yr.KDFhZV46JOtCGx1noKLTGS.',
+            'primary_role'    => $roles->where('name', 'admin')->first()->role_id,
+            'remember_token'  => '7M0mdSotgo',
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
 
         // Get some random roles to assign to users

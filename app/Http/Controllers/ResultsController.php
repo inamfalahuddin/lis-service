@@ -119,6 +119,9 @@ class ResultsController extends MshController
                 'no_lab' => $validated['no_lab']
             ]);
 
+            // ONLY TESTING PURPOSE
+            // return response()->json(file_get_contents(storage_path('test/response/result_by_no_lab.json')));
+
             $httpClient = app(HttpClientService::class);
             $response = $httpClient->sendToLIS($uri, [], 'GET');
 
