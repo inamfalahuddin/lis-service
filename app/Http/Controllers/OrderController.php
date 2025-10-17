@@ -402,7 +402,7 @@ class OrderController extends MshController
                 "),
                 'm_pasien.tanggal_lahir',
                 // 'm_pasien.alamat',
-                DB::raw("SUBSTRING_INDEX(m_pasien.alamat, ' ', 10) as alamat"),
+                DB::raw("SUBSTRING_INDEX(m_pasien.alamat, ' ', 5) as alamat"),
                 'm_pasien.no_telepon_1',
                 'm_pasien.no_telepon_2',
                 'm_pasien.no_identitas',
