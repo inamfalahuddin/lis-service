@@ -22,6 +22,7 @@ RUN apt-get update \
 RUN docker-php-ext-install \
     mbstring \
     pdo_pgsql \
+    pdo_mysql \
     opcache \
     zip \
     bcmath \
@@ -83,7 +84,7 @@ USER root
 
 RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
-    rm /var/log/lastlog /var/log/faillog
+    rm -f /var/log/lastlog /var/log/faillog
 
 RUN usermod -u 1000 www-data
 
