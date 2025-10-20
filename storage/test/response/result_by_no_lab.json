@@ -11,7 +11,7 @@
             "birth_dt": "17.06.1997",
             "clinician_name": "dr. Elba Nurdiansyah, Sp.An",
             "bangsal_name": "POLI ANASTESI",
-            "order_lab": "LAB.250730.0353",
+            "order_lab": "LAB.230822.0039",
             "reg_no": "387546",
             "lis_sampel": "2510070006",
             "acc_by": "DEDI1234",
@@ -21,257 +21,92 @@
             "reserve3": "",
             "result_test": [
                 {
+                    "test_id": "Na",
+                    "nama_test": "Natrium",
+                    "jenis_hasil": "NUMERIK",
+                    "hasil": "140.0",
+                    "satuan": "mEg/L",
+                    "nilai_normal": "132.00 - 147.00",
+                    "flag": null,
+                    "kode_paket": "ELEK 01",
+                    "reserve4": "100"
+                },
+                {
+                    "test_id": "K",
+                    "nama_test": "Kalium",
+                    "jenis_hasil": "NUMERIK",
+                    "hasil": "4.2",
+                    "satuan": "mEg/dL",
+                    "nilai_normal": "3.30 - 5.40",
+                    "flag": null,
+                    "kode_paket": "ELEK 01",
+                    "reserve4": "110"
+                },
+                {
+                    "test_id": "CL",
+                    "nama_test": "Chlorida",
+                    "jenis_hasil": "NUMERIK",
+                    "hasil": "102.0",
+                    "satuan": "mEg/dL",
+                    "nilai_normal": "94.00 - 111.00",
+                    "flag": null,
+                    "kode_paket": "ELEK 01",
+                    "reserve4": "120"
+                },
+                {
                     "test_id": "HB",
                     "nama_test": "Hemoglobin",
                     "jenis_hasil": "NUMERIK",
-                    "hasil": "14.5",
+                    "hasil": "13.8",
                     "satuan": "g/dL",
-                    "nilai_normal": "13.50 - 16.50",
+                    "nilai_normal": "12.00 - 15.00",
                     "flag": null,
                     "kode_paket": "HEMA 02",
-                    "reserve4": "110"
+                    "reserve4": "130"
                 },
                 {
                     "test_id": "HT",
                     "nama_test": "Hematokrit",
                     "jenis_hasil": "NUMERIK",
-                    "hasil": "45.0",
+                    "hasil": "40.5",
                     "satuan": "%",
-                    "nilai_normal": "41.00 - 50.00",
+                    "nilai_normal": "36.00 - 44.00",
                     "flag": null,
                     "kode_paket": "HEMA 02",
-                    "reserve4": "120"
+                    "reserve4": "140"
                 },
                 {
                     "test_id": "TROMBO",
                     "nama_test": "Trombosit",
                     "jenis_hasil": "NUMERIK",
-                    "hasil": "250",
+                    "hasil": "280",
                     "satuan": "10^3/uL",
                     "nilai_normal": "150.00 - 450.00",
                     "flag": null,
                     "kode_paket": "HEMA 02",
-                    "reserve4": "125"
+                    "reserve4": "150"
                 },
                 {
                     "test_id": "LEK",
                     "nama_test": "Hitung Leukosit",
                     "jenis_hasil": "NUMERIK",
-                    "hasil": "7.5",
+                    "hasil": "7.2",
                     "satuan": "10^3/uL",
                     "nilai_normal": "4.50 - 11.00",
                     "flag": null,
                     "kode_paket": "HEMA 02",
-                    "reserve4": "115"
+                    "reserve4": "160"
                 },
                 {
-                    "test_id": "URINE01",
-                    "nama_test": "Warna",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Kuning",
-                    "satuan": "",
-                    "nilai_normal": "Kuning",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "210"
-                },
-                {
-                    "test_id": "Urine02",
-                    "nama_test": "Kejernihan",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Jernih",
-                    "satuan": "",
-                    "nilai_normal": "Jernih",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "220"
-                },
-                {
-                    "test_id": "Urine03",
-                    "nama_test": "Glukosa",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "230"
-                },
-                {
-                    "test_id": "Urine04",
-                    "nama_test": "Bilirubin",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "240"
-                },
-                {
-                    "test_id": "Urine05",
-                    "nama_test": "Keton",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "250"
-                },
-                {
-                    "test_id": "Urine06",
-                    "nama_test": "Berat Jenis",
+                    "test_id": "GD",
+                    "nama_test": "Gula Darah Sewaktu Cito",
                     "jenis_hasil": "NUMERIK",
-                    "hasil": "1.015",
-                    "satuan": "",
-                    "nilai_normal": "1.000 - 1.030",
+                    "hasil": "95.0",
+                    "satuan": "mg/dL",
+                    "nilai_normal": "60.00 - 100.00",
                     "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "260"
-                },
-                {
-                    "test_id": "Urine07",
-                    "nama_test": "PH",
-                    "jenis_hasil": "NUMERIK",
-                    "hasil": "6.5",
-                    "satuan": "",
-                    "nilai_normal": "4.80 - 7.40",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "270"
-                },
-                {
-                    "test_id": "Urine08",
-                    "nama_test": "Protein",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "280"
-                },
-                {
-                    "test_id": "Urine09",
-                    "nama_test": "Urobilinogen",
-                    "jenis_hasil": "NUMERIK",
-                    "hasil": "0.5",
-                    "satuan": "",
-                    "nilai_normal": "0.10 - 1.00",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "290"
-                },
-                {
-                    "test_id": "Urine10",
-                    "nama_test": "Nitrit",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "300"
-                },
-                {
-                    "test_id": "Urine11",
-                    "nama_test": "Darah Samar",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "310"
-                },
-                {
-                    "test_id": "Urine12",
-                    "nama_test": "Erase Leukosit",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "320"
-                },
-                {
-                    "test_id": "Sed01",
-                    "nama_test": "Eritrosit",
-                    "jenis_hasil": "NUMERIK",
-                    "hasil": "0.5",
-                    "satuan": "",
-                    "nilai_normal": "0.00 - 1.00",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "330"
-                },
-                {
-                    "test_id": "Sed02",
-                    "nama_test": "Leukosit",
-                    "jenis_hasil": "NUMERIK",
-                    "hasil": "2.5",
-                    "satuan": "",
-                    "nilai_normal": "1.00 - 4.00",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "340"
-                },
-                {
-                    "test_id": "Sed03",
-                    "nama_test": "Silinder",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "350"
-                },
-                {
-                    "test_id": "Sed04",
-                    "nama_test": "Epitel",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Positif",
-                    "satuan": "",
-                    "nilai_normal": "Positif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "360"
-                },
-                {
-                    "test_id": "Sed05",
-                    "nama_test": "Kristal",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "370"
-                },
-                {
-                    "test_id": "Sed06",
-                    "nama_test": "Bakteri",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "Negatif",
-                    "satuan": "",
-                    "nilai_normal": "Negatif",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "380"
-                },
-                {
-                    "test_id": "Sed07",
-                    "nama_test": "Lain Lain",
-                    "jenis_hasil": "TEKS",
-                    "hasil": "-",
-                    "satuan": "",
-                    "nilai_normal": "-",
-                    "flag": null,
-                    "kode_paket": "UR 01",
-                    "reserve4": "390"
+                    "kode_paket": "KK 12",
+                    "reserve4": "170"
                 }
             ]
         }
