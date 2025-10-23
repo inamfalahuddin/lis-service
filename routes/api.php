@@ -90,5 +90,13 @@ $api->version('v1', ['middleware' => ['api']], function (Router $api) {
         $api->post('/order', 'App\Http\Controllers\OrderController@order');
         $api->post('/order_me', 'App\Http\Controllers\OrderController@order_me');
         $api->post('/pasien', 'App\Http\Controllers\PasienController@pasien');
+
+
+        /*
+         * WEBHOOK
+         */
+        $api->group(['prefix' => 'webhook'], function (Router $api) {
+            $api->post('/order', 'App\Http\Controllers\WebhookController@order');
+        });
     });
 });

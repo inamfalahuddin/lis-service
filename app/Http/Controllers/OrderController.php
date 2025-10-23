@@ -27,6 +27,9 @@ class OrderController extends MshController
             'kode_transaksi' => ['required', 'string', 'max:50'],
         ]);
 
+        $transactionCodes = [$validated['kode_transaksi']];
+        $raw = $this->get_data_register($transactionCodes);
+
         Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Request received', [
             'method' => 'order',
             'ip' => $request->ip(),
@@ -63,9 +66,6 @@ class OrderController extends MshController
                 'payload->validation' => $validated,
                 'updated_at' => now()
             ]);
-
-            $transactionCodes = [$validated['kode_transaksi']];
-            $raw = $this->get_data_register($transactionCodes);
 
             // Cek jika data tidak ditemukan
             if ($raw->isEmpty()) {
