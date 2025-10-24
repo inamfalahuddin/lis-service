@@ -163,7 +163,7 @@ class WebhookController extends MshController
                     } else {
                         $toInsert[] = array_merge($result, [
                             'created_at' => now(),
-                            'updated_at' => now()
+                            'update_at' => now()
                         ]);
                     }
                 }
