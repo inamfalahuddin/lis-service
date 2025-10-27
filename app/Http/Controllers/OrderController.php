@@ -323,76 +323,87 @@ class OrderController extends MshController
 
     private function orderPayload($data, $payload)
     {
-        // Helper untuk membentuk satu payload dari 1 item data
-        $build = function ($item) use ($payload) {
-            $birthDate = null;
-            if (!empty($item->tanggal_lahir)) {
-                $birthDate = \Carbon\Carbon::createFromFormat('Y-m-d', $item->tanggal_lahir)->format('d.m.Y');
-            }
+        // Helper function untuk truncate string sesuai length
+        $truncate = function ($value, $length) {
+            if ($value === null) return '';
+            return substr((string)$value, 0, $length);
+        };
 
-            $orderDate = null;
-            if (!empty($item->created_at)) {
-                $orderDate = \Carbon\Carbon::parse($item->created_at)
-                    ->format('d.m.Y H:i:s');
+        // Helper function untuk format tanggal
+        $formatDate = function ($date, $format) {
+            if (empty($date)) return null;
+            try {
+                return \Carbon\Carbon::parse($date)->format($format);
+            } catch (\Exception $e) {
+                return null;
             }
+        };
+
+        // Helper function untuk handle nilai default
+        $default = function ($value, $default = '') {
+            return empty($value) ? $default : $value;
+        };
+
+        // Build single payload
+        $build = function ($item) use ($payload, $truncate, $formatDate, $default) {
+            $birthDate = $formatDate($item->tanggal_lahir, 'd.m.Y');
+            $orderDate = $formatDate($item->created_at, 'd.m.Y H:i:s');
 
             $pemeriksaanList = [];
             if (!empty($item->lab_pemeriksaan)) {
-                $pemeriksaanList = explode(',', $item->lab_pemeriksaan);
+                $pemeriksaanList = array_map(function ($test) use ($truncate) {
+                    return $truncate($test, 20);
+                }, explode(',', $item->lab_pemeriksaan));
             }
 
             return [
                 "order" => [
                     "msh" => $this->getMshData(),
                     "pid" => [
-                        "pmrn"      => (string) $item->no_rm,
-                        "pname"     => (string) $item->pasien_nama,
-                        "sex"       => (string) $item->jenis_kelamin,
-                        "birth_dt"  => $birthDate,
-                        "address"   => (string) $item->alamat,
-                        "no_tlp"    => ($item->no_telepon_1 == '' ? '000000000' : (string) $item->no_telepon_1),
-                        "no_hp"     => ($item->no_telepon_2 == '' ? '000000000' : (string) $item->no_telepon_2),
-                        "email"     => (string) ($item->email ?? 'none@mail.com'), // kalau tidak ada field email, kasih null
-                        "nik"       => (string) $item->no_identitas
+                        "pmrn"      => $truncate($item->no_rm, 15),
+                        "pname"     => $truncate($item->pasien_nama, 100),
+                        "sex"       => $truncate($item->jenis_kelamin, 1),
+                        "birth_dt"  => $truncate($birthDate, 10),
+                        "address"   => $truncate($item->alamat, 100),
+                        "no_tlp"    => $truncate($default($item->no_telepon_1, '000000000'), 25),
+                        "no_hp"     => $truncate($default($item->no_telepon_2, '000000000'), 25),
+                        "email"     => $truncate($default($item->email, 'none@mail.com'), 25),
+                        "nik"       => $truncate($item->no_identitas, 25)
                     ],
                     "obr" => [
-                        "order_control"     => (string) StatusControlEnum::fromName($payload['order_control'])->value,
-                        "ptype"             => (string) StatusControlEnum::fromName($payload['status_pasien'])->value,
-                        // "reg_no"            => (string) $item->no_register,
-                        "reg_no"            => (string) $item->pelayanan_id,
-                        "order_lab"         => (string) $item->kode_transaksi,
-                        // "provider_id"       => (string) ($item->cara_bayar_id ?? '000'),
-                        "provider_id" => str_pad((string) ($item->cara_bayar_id ?? '0'), 3, '0', STR_PAD_LEFT),
-                        "provider_name"     => (string) $item->cara_bayar_nama,
-                        "order_date"        => (string) $orderDate,
-                        "clinician_id"      => (string) ($item->dokter_id == '0' ? '000' : (string) $item->dokter_id),
-                        "clinician_name"    => (string) ($item->dokter_nama ?? '000'),
-                        "bangsal_id"        => (string) ($item->layanan_id ?? '000'),
-                        "bangsal_name"      => (string) $item->layanan_nama,
-                        "bed_id"            => (string) ($item->bed_id ?? '000'),
-                        "bed_name"          => (string) ($item->bed_nama ?? '000'),
-                        "class_id"          => (string) ($item->kelas_id ?? '000'),
-                        "class_name"        => (string) $item->kelas_nama,
-                        "cito"              => (string) ($item->cito ? 'Y' : 'N'),
+                        "order_control"     => $truncate(StatusControlEnum::fromName($payload['order_control'])->value, 2),
+                        "ptype"             => $truncate(StatusControlEnum::fromName($payload['status_pasien'])->value, 2),
+                        "reg_no"            => $truncate($item->pelayanan_id, 15),
+                        "order_lab"         => $truncate($item->kode_transaksi, 15),
+                        "provider_id"       => $truncate(str_pad($default($item->cara_bayar_id, '0'), 3, '0', STR_PAD_LEFT), 15),
+                        "provider_name"     => $truncate($item->cara_bayar_nama, 50),
+                        "order_date"        => $truncate($orderDate, 19),
+                        "clinician_id"      => $truncate($default($item->dokter_id, '000'), 15),
+                        "clinician_name"    => $truncate($default($item->dokter_nama, '000'), 100),
+                        "bangsal_id"        => $truncate($default($item->layanan_id, '000'), 15),
+                        "bangsal_name"      => $truncate($item->layanan_nama, 100),
+                        "bed_id"            => $truncate($default($item->bed_id, '000'), 10),
+                        "bed_name"          => $truncate($default($item->bed_nama, '000'), 20),
+                        "class_id"          => $truncate($default($item->kelas_id, '000'), 10),
+                        "class_name"        => $truncate($item->kelas_nama, 15),
+                        "cito"              => $truncate($item->cito ? 'Y' : 'N', 1),
                         "med_legal"         => 'N',
-                        "user_id"           => (string) ($item->created_by ?? '000'),
+                        "user_id"           => $truncate($default($item->created_by, '000'), 30),
                         "reserve1"          => "",
                         "reserve2"          => "",
                         "reserve3"          => "",
                         "reserve4"          => "",
                         "order_test"        => $pemeriksaanList
-                        // "order_test"        => ["idtest1", "idtest2", "idtest3", "idtest4"]
                     ]
                 ]
             ];
         };
 
-        // Jika lebih dari 1 data
+        // Handle multiple or single data
         if (is_iterable($data) && count($data) > 1) {
             return array_map($build, $data);
         }
 
-        // Jika hanya satu data
         $item = is_iterable($data) ? $data[0] : $data;
         return $build($item);
     }
