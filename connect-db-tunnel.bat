@@ -5,7 +5,7 @@ REM Deskripsi: Membuat SSH tunnel ke MySQL server
 REM berjalan sepenuhnya di background
 REM ==============================================
 
-SET SSH_USER=root
+SET SSH_USER=rsababelan
 SET SSH_HOST=192.168.2.10
 SET REMOTE_DB_HOST=127.0.0.1
 SET REMOTE_DB_PORT=3306
