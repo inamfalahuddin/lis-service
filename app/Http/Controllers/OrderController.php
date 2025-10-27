@@ -137,7 +137,9 @@ class OrderController extends MshController
 
             // Handle response dari LIS
             if ($response['success']) {
-                if($response['data']['response']['code'] != '200'){
+                if ($response['data']['response']['code'] != '200') {
+                    $response['status'] = 400;
+
                     Log::channel(self::LOG_CHANNEL)->warning(self::LOG_PREFIX . ' - LIS response indicates failure', [
                         'kode_transaksi' => $validated['kode_transaksi'],
                         'status_code' => $response['status'],
@@ -151,8 +153,6 @@ class OrderController extends MshController
                         'response_time' => $responseTime,
                         'updated_at' => now()
                     ]);
-
-                    $response['status'] = 400; 
 
                     return response()->json($response['data'], $response['status'])->header('Content-Type', 'application/json');
                 }
