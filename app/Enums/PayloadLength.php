@@ -30,7 +30,7 @@ class PayloadLength
     const PROVIDER_NAME = 50;
     const ORDER_DATE = 19;
     const CLINICIAN_ID = 15;
-    const CLINICIAN_NAME = 100;
+    const CLINICIAN_NAME = 20;
     const BANGSAL_ID = 15;
     const BANGSAL_NAME = 100;
     const BED_ID = 10;
