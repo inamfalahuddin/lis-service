@@ -152,6 +152,8 @@ class OrderController extends MshController
                         'updated_at' => now()
                     ]);
 
+                    $response['status'] = 400; 
+
                     return response()->json($response['data'], $response['status'])->header('Content-Type', 'application/json');
                 }
 
