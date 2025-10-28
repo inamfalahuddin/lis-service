@@ -36,12 +36,10 @@ class PayloadLength
     const BED_ID            = 10;
     const BED_NAME          = 20;
     const CLASS_ID          = 10;
-    const CLASS_NAME        = 15;
+    const CLASS_NAME        = 15;   
     const CITO              = 1;
     const MED_LEGAL         = 1;
     const USER_ID_OBR       = 30;
     const RESERVE           = 100;
 
-    // Order Test
-    const ORDER_TEST        = 20;
 }

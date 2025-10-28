@@ -360,7 +360,8 @@ class OrderController extends MshController
                 $tests = explode(',', $labPemeriksaan);
                 foreach ($tests as $test) {
                     if (!empty(trim($test))) {
-                        $pemeriksaanList[] = $truncate(trim($test), PayloadLength::ORDER_TEST);
+                        // $pemeriksaanList[] = $truncate(trim($test), PayloadLength::ORDER_TEST);
+                        $pemeriksaanList[] = trim($test);
                     }
                 }
             }
