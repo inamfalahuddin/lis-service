@@ -5,3 +5,6 @@ docker exec -it service_his_workspace bash
 php artisan db:seed
 
 exit
+
+Untuk forward local database
+ssh -f -N -L 3307:localhost:3306 rsababelan@192.168.2.10
