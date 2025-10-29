@@ -72,15 +72,14 @@ class DefaultControlEnum
     private static function executeDefaultKelasQuery(): ?object
     {
         try {
-            return DB::selectOne("
-                SELECT id, kode, nama 
-                FROM m_kelas 
-                WHERE id = (
-                    SELECT option_value 
-                    FROM sys_options 
-                    WHERE option_name = 'default_kelas_rawat_jalan'
-                )
-            ");
+            return DB::connection('mysql2')
+                ->table('m_kelas as k')
+                ->select('k.id', 'k.kode', 'k.nama')
+                ->join('sys_options as so', function ($join) {
+                    $join->on('k.id', '=', 'so.option_value')
+                        ->where('so.option_name', 'default_kelas_rawat_jalan');
+                })
+                ->first();
         } catch (\Exception $e) {
             Log::channel('default_control_enum')->error('Error fetching default kelas data: ' . $e->getMessage());
             return null;
