@@ -350,8 +350,8 @@ class OrderController extends MshController
         $mshData = $this->getMshData(); // Panggil sekali saja
 
         $build = function ($item) use ($truncate, $formatDate, $default, $orderControl, $patientType, $mshData) {
-            $DEFAULT_KELAS_ID    = (string) DefaultControlEnum::getValue(DefaultControlEnum::KELAS_ID);
-            $DEFAULT_KELAS_NAMA  = (string) DefaultControlEnum::getValue(DefaultControlEnum::KELAS_NAMA);
+            $DEFAULT_KELAS_ID    = DefaultControlEnum::getValue(DefaultControlEnum::KELAS_ID);
+            $DEFAULT_KELAS_NAMA  = DefaultControlEnum::getValue(DefaultControlEnum::KELAS_NAMA);
 
             // Safe property access dengan null coalescing
             $birthDate = $formatDate($item->tanggal_lahir ?? null, 'd.m.Y');
@@ -399,7 +399,7 @@ class OrderController extends MshController
                         "bed_id"            => $truncate($default($item->bed_id ?? null, '000'), PayloadLength::BED_ID),
                         "bed_name"          => $truncate($default($item->bed_nama ?? null, '000'), PayloadLength::BED_NAME),
                         "class_id"          => $truncate($default($item->kelas_id ?? null, $DEFAULT_KELAS_ID), PayloadLength::CLASS_ID),
-                        "class_name"        => $truncate($default($item->kelas_nama ?? '', PayloadLength::CLASS_NAME, $DEFAULT_KELAS_NAMA), PayloadLength::CLASS_NAME),
+                        "class_name"        => $truncate($default($item->kelas_nama ?? '000', PayloadLength::CLASS_NAME, $DEFAULT_KELAS_NAMA), PayloadLength::CLASS_NAME),
                         "cito"              => $truncate(($item->cito ?? false) ? 'Y' : 'N', PayloadLength::CITO),
                         "med_legal"         => 'N',
                         "user_id"           => $truncate($default($item->created_by ?? null, '000'), PayloadLength::USER_ID_OBR),
