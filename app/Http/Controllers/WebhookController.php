@@ -73,6 +73,8 @@ class WebhookController extends MshController
             $sampel = $response['sampel'];
             $kodeTransaksi = $response['sampel']['order_lab'];
 
+            $hasResults = isset($sampel['result_test']) && is_array($sampel['result_test']) && count($sampel['result_test']) > 0;
+
             DB::beginTransaction();
 
             // Ambil semua data sekaligus dengan satu query
@@ -217,6 +219,16 @@ class WebhookController extends MshController
                         DB::connection('mysql2')->update($updateSql, $bindings);
                     }
                 }
+
+                if ($hasResults) {
+                    DB::connection('mysql2')
+                        ->table('t_lab_register')
+                        ->where('kode_transaksi', $kodeTransaksi)
+                        ->update([
+                            'is_lis_hasil' => 1,
+                            'update_at' => now()
+                        ]);
+                }
             }
 
             DB::commit();
@@ -277,241 +289,4 @@ class WebhookController extends MshController
             ]);
         }
     }
-
-    // public function order(Request $request)
-    // {
-    //     $startTime = microtime(true);
-    //     $requestId = Str::uuid()->toString();
-
-    //     $data = $request->json()->all();
-
-    //     Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Request received', [
-    //         'request_id' => $requestId,
-    //         'payload' => $data
-    //     ]);
-
-    //     $apiLog = ApiLog::create([
-    //         'service_name' => 'LIS_WEBHOOK_ORDER',
-    //         'method' => $request->method(),
-    //         'endpoint' => $request->fullUrl(),
-    //         'payload' => $data,
-    //         'status_code' => null,
-    //         'status' => 'pending',
-    //         'ip_address' => $request->ip(),
-    //         'user_agent' => $request->userAgent(),
-    //         'request_id' => $requestId,
-    //         'response_time' => null,
-    //         'created_at' => now(),
-    //         'updated_at' => now(),
-    //     ]);
-
-    //     try {
-    //         if (!isset($data['response'])) {
-    //             throw new \Exception('Invalid payload, missing response key');
-    //         }
-
-    //         if ($data['response']['code'] !== "200") {
-    //             throw new \Exception('Response code is not 200');
-    //         }
-
-    //         $response = $data['response'];
-    //         if (!isset($response['sampel'])) {
-    //             throw new \Exception('Invalid payload, missing sampel data');
-    //         }
-
-    //         if (!isset($response['sampel']['order_lab'])) {
-    //             return response()->json([
-    //                 "response" => [
-    //                     "code" => "404",
-    //                     "message" => "Tidak Ada Data",
-    //                     "product" => "SOFTMEDIX LIS",
-    //                     "version" => "ws.003",
-    //                     "id" => ""
-    //                 ]
-    //             ]);
-    //         }
-
-    //         $sampel = $response['sampel'];
-    //         $kodeTransaksi = $response['sampel']['order_lab'];
-
-    //         DB::beginTransaction();
-
-    //         // Ambil semua data sekaligus dengan satu query
-    //         $results = DB::connection('mysql2')
-    //             ->table('t_lab_pelaksanaan_pemeriksaan')
-    //             ->select(
-    //                 't_lab_pelaksanaan_pemeriksaan.id as pelaksanaan_pemeriksaan_id',
-    //                 't_lab_pelaksanaan_pemeriksaan.pelaksanaan_id',
-    //                 't_lab_pelaksanaan_pemeriksaan.pemeriksaan_id',
-    //                 'm_lab_pemeriksaan.id as pemeriksaan_id',
-    //                 'm_lab_pemeriksaan.tarif_pelayanan_id',
-    //                 'm_lab_pemeriksaan.kode as pemeriksaan_kode',
-    //                 'm_lab_pemeriksaan.nama as pemeriksaan_nama',
-    //                 'm_lab_pemeriksaan_item.id as item_id',
-    //                 'm_lab_pemeriksaan_item.kode as item_kode',
-    //                 'm_lab_pemeriksaan_item.nama as item_nama',
-    //                 'm_lab_pemeriksaan_item.status as item_status'
-    //             )
-    //             ->join('m_lab_pemeriksaan', 'm_lab_pemeriksaan.id', '=', 't_lab_pelaksanaan_pemeriksaan.pemeriksaan_id')
-    //             ->join('t_lab_pelaksanaan', 't_lab_pelaksanaan.id', '=', 't_lab_pelaksanaan_pemeriksaan.pelaksanaan_id')
-    //             ->join('t_lab_register', 't_lab_register.id', '=', 't_lab_pelaksanaan.register_id')
-    //             ->join('m_lab_pemeriksaan_fk', 'm_lab_pemeriksaan_fk.pemeriksaan_id', '=', 'm_lab_pemeriksaan.id')
-    //             ->join('m_lab_pemeriksaan_item', 'm_lab_pemeriksaan_item.id', '=', 'm_lab_pemeriksaan_fk.pemeriksaan_item_id')
-    //             ->where('t_lab_register.kode_transaksi', $kodeTransaksi)
-    //             ->get();
-
-    //         // Buat lookup maps dari hasil query
-    //         $lookup_pemeriksaan_id = [];
-    //         $lookup_items = [];
-
-    //         foreach ($results as $item) {
-    //             // Map untuk pemeriksaan_id
-    //             $lookup_pemeriksaan_id[$item->pemeriksaan_kode] = $item->pelaksanaan_pemeriksaan_id;
-
-    //             // Map untuk items
-    //             $key = $item->pemeriksaan_kode . '||' . $item->item_kode;
-    //             $lookup_items[$key] = (object)[
-    //                 'kode' => $item->item_kode,
-    //                 'nama' => $item->item_nama,
-    //                 'status' => $item->item_status
-    //             ];
-    //         }
-
-    //         $finalResults = [];
-    //         foreach ($sampel['result_test'] as $test) {
-    //             $key = $test['kode_paket'] . '||' . $test['test_id'];
-
-    //             if (isset($lookup_items[$key]) && isset($lookup_pemeriksaan_id[$test['kode_paket']])) {
-    //                 $item = $lookup_items[$key];
-    //                 $finalResults[] = [
-    //                     'pemeriksaan_id' => $lookup_pemeriksaan_id[$test['kode_paket']],
-    //                     'kode'           => $item->kode,
-    //                     'nama'           => $item->nama,
-    //                     'datatype'       => $test['jenis_hasil'],
-    //                     'value'          => $test['hasil'],
-    //                     'satuan'         => $test['satuan'],
-    //                     'nilai_normal'   => $test['nilai_normal'],
-    //                     'lis_flag_sign'  => $test['flag'],
-    //                     'lis'            => 1,
-    //                 ];
-    //             }
-    //         }
-
-    //         // Pisahkan data yang sudah ada dan belum ada
-    //         $existingRecords = DB::connection('mysql2')
-    //             ->table('t_lab_pelaksanaan_pemeriksaan_hasil')
-    //             ->whereIn('pemeriksaan_id', array_column($finalResults, 'pemeriksaan_id'))
-    //             ->whereIn('kode', array_column($finalResults, 'kode'))
-    //             ->get()
-    //             ->keyBy(function ($item) {
-    //                 return $item->pemeriksaan_id . '||' . $item->kode;
-    //             });
-
-    //         $toUpdate = [];
-    //         $toInsert = [];
-
-    //         foreach ($finalResults as $result) {
-    //             $key = $result['pemeriksaan_id'] . '||' . $result['kode'];
-
-    //             if (isset($existingRecords[$key])) {
-    //                 // Data sudah ada, tambahkan ke update list
-    //                 $toUpdate[] = $result;
-    //             } else {
-    //                 // Data belum ada, tambahkan ke insert list
-    //                 $toInsert[] = array_merge($result, [
-    //                     'created_at' => now(),
-    //                     'updated_at' => now()
-    //                 ]);
-    //             }
-    //         }
-
-    //         // Bulk Insert untuk data baru
-    //         if (!empty($toInsert)) {
-    //             DB::connection('mysql2')
-    //                 ->table('t_lab_pelaksanaan_pemeriksaan_hasil')
-    //                 ->insert($toInsert);
-    //         }
-
-    //         // Batch Update untuk data yang sudah ada
-    //         if (!empty($toUpdate)) {
-    //             $caseStatements = [];
-    //             $bindings = [];
-    //             $pemeriksaanIds = [];
-    //             $kodes = [];
-
-    //             // Build CASE statements untuk update bulk
-    //             foreach (['nama', 'datatype', 'value', 'satuan', 'nilai_normal', 'lis_flag_sign', 'lis'] as $field) {
-    //                 $caseSql = "{$field} = CASE ";
-    //                 foreach ($toUpdate as $index => $result) {
-    //                     $caseSql .= "WHEN pemeriksaan_id = ? AND kode = ? THEN ? ";
-    //                     $bindings[] = $result['pemeriksaan_id'];
-    //                     $bindings[] = $result['kode'];
-    //                     $bindings[] = $result[$field];
-
-    //                     if ($index === 0) {
-    //                         $pemeriksaanIds[] = $result['pemeriksaan_id'];
-    //                         $kodes[] = $result['kode'];
-    //                     }
-    //                 }
-    //                 $caseSql .= "ELSE {$field} END";
-    //                 $caseStatements[] = $caseSql;
-    //             }
-
-    //             $bindings = array_merge($bindings, $pemeriksaanIds, $kodes);
-
-    //             $updateSql = "UPDATE t_lab_pelaksanaan_pemeriksaan_hasil SET "
-    //                 . implode(', ', $caseStatements)
-    //                 . " WHERE pemeriksaan_id IN (" . implode(',', array_fill(0, count($pemeriksaanIds), '?')) . ")"
-    //                 . " AND kode IN (" . implode(',', array_fill(0, count($kodes), '?')) . ")";
-
-    //             DB::connection('mysql2')->update($updateSql, $bindings);
-    //         }
-
-    //         DB::commit();
-
-    //         $responseTime = round((microtime(true) - $startTime) * 1000, 3);
-
-    //         $apiLog->update([
-    //             'status_code' => 200,
-    //             'status' => 'success',
-    //             'response_time' => $responseTime,
-    //             'updated_at' => now(),
-    //             'response' => ['message' => 'Data received and processed']
-    //         ]);
-
-    //         Log::channel(self::LOG_CHANNEL)->info(self::LOG_PREFIX . ' - Data processed successfully', [
-    //             'request_id' => $requestId,
-    //             'lis_sampel' => $sampel['lis_sampel'],
-    //         ]);
-
-    //         return response()->json(['status' => 'success', 'message' => 'Data received and processed']);
-    //     } catch (\Exception $e) {
-    //         DB::rollBack();
-
-    //         $responseTime = round((microtime(true) - $startTime) * 1000, 3);
-
-    //         Log::channel(self::LOG_CHANNEL)->error(self::LOG_PREFIX . ' - Failed processing webhook', [
-    //             'request_id' => $requestId,
-    //             'error' => $e->getMessage()
-    //         ]);
-
-    //         $apiLog->update([
-    //             'status_code' => 404,
-    //             'status' => 'error',
-    //             'error_message' => $e->getMessage(),
-    //             'response_time' => $responseTime,
-    //             'updated_at' => now(),
-    //         ]);
-
-    //         return response()->json([
-    //             'response' => [
-    //                 'code' => '404',
-    //                 'message' => 'Tidak Ada Data',
-    //                 'product' => env('LIS_PRODUCT_NAME', 'SOFTMEDIX LIS'),
-    //                 'version' => env('LIS_VERSION', 'ws.003'),
-    //                 'id' => ''
-    //             ]
-    //         ], 404);
-    //     }
-    // }
 }
