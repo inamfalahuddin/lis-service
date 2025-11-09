@@ -81,6 +81,7 @@ class WebhookController extends MshController
             $results = DB::connection('mysql2')
                 ->table('t_lab_pelaksanaan_pemeriksaan')
                 ->select(
+                    't_lab_pelaksanaan.id as pelaksanaan_id',
                     't_lab_pelaksanaan_pemeriksaan.id as pelaksanaan_pemeriksaan_id',
                     't_lab_pelaksanaan_pemeriksaan.pelaksanaan_id',
                     't_lab_pelaksanaan_pemeriksaan.pemeriksaan_id',
@@ -200,6 +201,8 @@ class WebhookController extends MshController
                             $caseStatements[] = $caseSql;
                         }
 
+                        // echo json_encode($caseStatements);
+
                         // Collect unique IDs untuk WHERE clause
                         foreach ($chunk as $result) {
                             $chunkPemeriksaanIds[$result['pemeriksaan_id']] = true;
@@ -229,6 +232,21 @@ class WebhookController extends MshController
                             'update_at' => now()
                         ]);
                 }
+
+                // Update t_lab_pelaksanaan set status = 'Selesai'
+                $updatePelaksanaan = [
+                    'hasil_flag'    => 1,
+                    'hasil_at'      => now(),
+                    'hasil_by'      => env('USER_SOFTMEDIX_ID', 2),
+                    'dokter_flag'   => 1,
+                    'dokter_at'     => now(),
+                    'dokter_by'     => env('USER_SOFTMEDIX_ID', 2),
+                    'status'        => 3,
+                    'update_at'     => now(),
+                    'updated_by'    => env('USER_SOFTMEDIX_ID', 2),
+                ];
+
+                DB::connection('mysql2')->table('t_lab_pelaksanaan')->whereIn('id', $uniquePemeriksaanIds)->update($updatePelaksanaan);
             }
 
             DB::commit();

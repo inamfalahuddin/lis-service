@@ -114,6 +114,8 @@ class OrderController extends MshController
 
             $payload = $this->orderPayload($raw->toArray(), $validated);
 
+            // echo json_encode($payload); die;
+
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - Payload constructed', [
                 'kode_transaksi' => $validated['kode_transaksi'],
                 'payload_keys' => array_keys($payload),
@@ -345,16 +347,19 @@ class OrderController extends MshController
         };
 
         // Pre-process payload data yang sama untuk semua item
-        $orderControl = $truncate(StatusControlEnum::fromName($payload['order_control'])->value, PayloadLength::ORDER_CONTROL);
-        $patientType = $truncate(StatusControlEnum::fromName($payload['status_pasien'])->value, PayloadLength::PTYPE);
-        $mshData = $this->getMshData(); // Panggil sekali saja
+        $orderControl   = $truncate(StatusControlEnum::fromName($payload['order_control'])->value, PayloadLength::ORDER_CONTROL);
+        $patientType    = $truncate(StatusControlEnum::fromName($payload['status_pasien'])->value, PayloadLength::PTYPE);
+        $mshData        = $this->getMshData(); // Panggil sekali saja
 
         $build = function ($item) use ($truncate, $formatDate, $default, $orderControl, $patientType, $mshData) {
             $DEFAULT_KELAS_ID    = (string) DefaultControlEnum::getValue(DefaultControlEnum::KELAS_ID);
             $DEFAULT_KELAS_NAMA  = (string) DefaultControlEnum::getValue(DefaultControlEnum::KELAS_NAMA);
 
+            $isRanap = (strpos($item->no_register ?? '', 'IRN') !== false);
+            $isNonRs = (($item->pasien_id ?? null) == env('PASIEN_NON_RS_ID', 1));
+
             // Safe property access dengan null coalescing
-            $birthDate = $formatDate($item->tanggal_lahir ?? null, 'd.m.Y');
+            $birthDate = $formatDate($isRanap ? ($item->front_desk_tanggal_lahir ?? null) : ($item->tanggal_lahir ?? null), 'd.m.Y');
             $orderDate = $formatDate($item->created_at ?? null, 'd.m.Y H:i:s');
 
             // Optimasi pemeriksaan list
@@ -370,15 +375,26 @@ class OrderController extends MshController
                 }
             }
 
+            // Delcared is non rs
+            $pMRN       = $truncate($isNonRs ? ($item->pelayanan_id ?? '') : ($item->no_rm ?? ''), PayloadLength::PMRN);
+            $pName      = $truncate($isNonRs ? ($item->front_desk_nama ?? '') : ($item->pasien_nama ?? ''), PayloadLength::PNAME);
+            $sex        = $truncate($isNonRs ? ($item->front_desk_jenis_kelamin ?? '') : ($item->jenis_kelamin ?? ''), PayloadLength::SEX);
+            $address    = $truncate($isNonRs ? ($item->front_desk_alamat ?? '') : ($item->alamat ?? ''), PayloadLength::ADDRESS);
+
+
+            // Dclared is ranap
+            $bangsalID   = $truncate($default($isRanap ? ($item->bed_ruang_id ?? null) : ($item->layanan_id ?? null), '000'), PayloadLength::BANGSAL_ID);
+            $bangsalName = $truncate($isRanap ? ($item->ruang_nama ?? '') : ($item->layanan_nama ?? ''), PayloadLength::BANGSAL_NAME);
+
             return [
                 "order" => [
                     "msh" => $mshData, // Gunakan yang sudah diproses
                     "pid" => [
-                        "pmrn"      => $truncate($item->no_rm ?? '', PayloadLength::PMRN),
-                        "pname"     => $truncate($item->pasien_nama ?? '', PayloadLength::PNAME),
-                        "sex"       => $truncate($item->jenis_kelamin ?? '', PayloadLength::SEX),
+                        "pmrn"      => $pMRN,
+                        "pname"     => $pName,
+                        "sex"       => $sex,
                         "birth_dt"  => $truncate($birthDate, PayloadLength::BIRTH_DT),
-                        "address"   => $truncate($item->alamat ?? '', PayloadLength::ADDRESS),
+                        "address"   => $address,
                         "no_tlp"    => $truncate($default($item->no_telepon_1 ?? null, '000000000'), PayloadLength::NO_TLP),
                         "no_hp"     => $truncate($default($item->no_telepon_1 ?? null, '000000000'), PayloadLength::NO_HP),
                         "email"     => $truncate($default($item->email ?? null, 'none@mail.com'), PayloadLength::EMAIL),
@@ -394,8 +410,8 @@ class OrderController extends MshController
                         "order_date"        => $truncate($orderDate, PayloadLength::ORDER_DATE),
                         "clinician_id"      => $truncate($default($item->dokter_id ?? null, '000'), PayloadLength::CLINICIAN_ID),
                         "clinician_name"    => $truncate($default($item->dokter_nama ?? null, '000'), PayloadLength::CLINICIAN_NAME),
-                        "bangsal_id"        => $truncate($default($item->layanan_id ?? null, '000'), PayloadLength::BANGSAL_ID),
-                        "bangsal_name"      => $truncate($item->layanan_nama ?? '', PayloadLength::BANGSAL_NAME),
+                        "bangsal_id"        => $bangsalID,
+                        "bangsal_name"      => $bangsalName,
                         "bed_id"            => $truncate($default($item->bed_id ?? null, '000'), PayloadLength::BED_ID),
                         "bed_name"          => $truncate($default($item->bed_nama ?? null, '000'), PayloadLength::BED_NAME),
                         "class_id"          => $truncate($default($item->kelas_id ?? null, $DEFAULT_KELAS_ID), PayloadLength::CLASS_ID),
@@ -442,6 +458,7 @@ class OrderController extends MshController
                 't_pelayanan.layanan_id',
                 't_pelayanan.bed_id',
                 't_pelayanan.kelas_id',
+                'm_pasien.id as pasien_id',
                 'm_pasien.no_rm',
                 'm_pasien.nama as pasien_nama',
                 DB::raw("
@@ -462,6 +479,18 @@ class OrderController extends MshController
                 'm_layanan.nama as layanan_nama',
                 'm_kelas.nama as kelas_nama',
                 'm_bed.nama as bed_nama',
+                'm_bed.ruang_id as bed_ruang_id',
+                'm_ruang.nama as ruang_nama',
+                't_front_desk.nama as front_desk_nama',
+                't_front_desk.alamat as front_desk_alamat',
+                DB::raw("
+                    CASE 
+                        WHEN t_front_desk.jenis_kelamin = 1 THEN 'L'
+                        WHEN t_front_desk.jenis_kelamin = 2 THEN 'P'
+                        ELSE '-' 
+                    END as front_desk_jenis_kelamin
+                "),
+                't_front_desk.tanggal_lahir as front_desk_tanggal_lahir',
                 DB::raw("
                     (SELECT GROUP_CONCAT(kode SEPARATOR ',')
                     FROM m_lab_pemeriksaan 
@@ -479,6 +508,8 @@ class OrderController extends MshController
             ->leftJoin('m_layanan', 'm_layanan.id', '=', 't_pelayanan.layanan_id')
             ->leftJoin('m_kelas', 'm_kelas.id', '=', 't_pelayanan.kelas_id')
             ->leftJoin('m_bed', 'm_bed.id', '=', 't_pelayanan.bed_id')
+            ->leftJoin('m_ruang', 'm_ruang.id', '=', 'm_bed.ruang_id')
+            ->leftJoin('t_front_desk', 't_front_desk.pelayanan_id', '=', 't_pelayanan.id')
             ->whereIn('t_lab_register.kode_transaksi', $kode_transaksi)
             ->get();
 

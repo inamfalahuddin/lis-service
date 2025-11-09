@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class DefaultControlEnum
 {
-    public const KELAS_ID = 'DEFAULT:KELAS_ID';
+    public const KELAS_ID   = 'DEFAULT:KELAS_ID';
     public const KELAS_KODE = 'DEFAULT:KELAS_KODE';
     public const KELAS_NAMA = 'DEFAULT:KELAS_NAMA';
 
