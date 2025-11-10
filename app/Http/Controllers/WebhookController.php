@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\ApiLog;
 use Dingo\Api\Http\Middleware\Auth;
 use Illuminate\Support\Str;
+use JsonException;
 
 class WebhookController extends MshController
 {
@@ -119,13 +120,17 @@ class WebhookController extends MshController
                 ];
             }
 
+            // header('Content-Type: application/json');
+            // echo json_encode($sampel['result_test']); die;
+            // echo json_encode($lookup_items); die;
+
             $finalResults = [];
-            foreach ($sampel['result_test'] as $test) {
+            foreach ($sampel['result_test'] as $index => $test) {
                 $key = $test['kode_paket'] . '||' . $test['test_id'];
 
                 if (isset($lookup_items[$key]) && isset($lookup_pemeriksaan_id[$test['kode_paket']])) {
                     $item = $lookup_items[$key];
-                    $finalResults[] = [
+                    $finalResults[$index] = [
                         'pemeriksaan_id' => $lookup_pemeriksaan_id[$test['kode_paket']],
                         'kode'           => $item->kode,
                         'nama'           => $item->nama,
@@ -135,9 +140,18 @@ class WebhookController extends MshController
                         'nilai_normal'   => $test['nilai_normal'],
                         'lis_flag_sign'  => $test['flag'],
                         'lis'            => 1,
+                        'original_order' => $index,
                     ];
                 }
             }
+
+            $finalResults = array_filter($finalResults);
+            ksort($finalResults);
+
+            $finalResults = array_map(function ($item) {
+                unset($item['original_order']);
+                return $item;
+            }, array_values($finalResults));
 
             if (!empty($finalResults)) {
                 // Optimasi: Gunakan array_unique untuk mengurangi duplikasi
@@ -173,6 +187,20 @@ class WebhookController extends MshController
 
                 // Bulk Insert untuk data baru
                 if (!empty($toInsert)) {
+                    $insertOrder = [];
+                    foreach ($finalResults as $index => $result) {
+                        $key = $result['pemeriksaan_id'] . '||' . $result['kode'];
+                        $insertOrder[$key] = $index;
+                    }
+
+                    // Urutkan toInsert berdasarkan urutan yang sama dengan finalResults
+                    usort($toInsert, function ($a, $b) use ($insertOrder) {
+                        $keyA = $a['pemeriksaan_id'] . '||' . $a['kode'];
+                        $keyB = $b['pemeriksaan_id'] . '||' . $b['kode'];
+
+                        return $insertOrder[$keyA] - $insertOrder[$keyB];
+                    });
+
                     DB::connection('mysql2')
                         ->table('t_lab_pelaksanaan_pemeriksaan_hasil')
                         ->insert($toInsert);
@@ -243,11 +271,12 @@ class WebhookController extends MshController
                     'dokter_by'     => env('USER_SOFTMEDIX_ID', 2),
                     'status'        => 3,
                     'update_at'     => now(),
-                    'updated_by'    => env('USER_SOFTMEDIX_ID', 2),
-                    'panggil_pasien_flag' => 1,
+                    'update_by'    => env('USER_SOFTMEDIX_ID', 2),
+                    // 'panggil_pasien_flag' => 1,
                 ];
 
-                DB::connection('mysql2')->table('t_lab_pelaksanaan')->whereIn('id', $uniquePemeriksaanIds)->update($updatePelaksanaan);
+                $labPelaksanaanID = DB::connection('mysql2')->table('t_lab_pelaksanaan')->join('t_lab_register', 't_lab_register.id', '=', 't_lab_pelaksanaan.register_id')->where('t_lab_register.kode_transaksi', $kodeTransaksi)->pluck('t_lab_pelaksanaan.id')->toArray();
+                DB::connection('mysql2')->table('t_lab_pelaksanaan')->whereIn('id', $labPelaksanaanID)->update($updatePelaksanaan);
             }
 
             DB::commit();
@@ -300,7 +329,7 @@ class WebhookController extends MshController
             return response()->json([
                 "response" => [
                     "code" => "404",
-                    "message" => "Tidak Ada Data",
+                    "message" => "gagal: " . $e->getMessage(),
                     "product" => "SOFTMEDIX LIS",
                     "version" => "ws.003",
                     "id" => ""
