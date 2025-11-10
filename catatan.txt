@@ -8,3 +8,11 @@ exit
 
 Untuk forward local database
 ssh -f -N -L 3307:localhost:3306 rsababelan@192.168.2.10
+
+taskkill /IM "ssh.exe" /F
+
+optimasi
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
