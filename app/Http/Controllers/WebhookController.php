@@ -244,6 +244,7 @@ class WebhookController extends MshController
                     'status'        => 3,
                     'update_at'     => now(),
                     'updated_by'    => env('USER_SOFTMEDIX_ID', 2),
+                    'panggil_pasien_flag' => 1,
                 ];
 
                 DB::connection('mysql2')->table('t_lab_pelaksanaan')->whereIn('id', $uniquePemeriksaanIds)->update($updatePelaksanaan);
