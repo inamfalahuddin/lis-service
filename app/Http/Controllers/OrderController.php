@@ -114,7 +114,9 @@ class OrderController extends MshController
 
             $payload = $this->orderPayload($raw->toArray(), $validated);
 
-            // echo json_encode($payload); die;
+            // header('Content-Type: application/json');
+            // echo json_encode($payload);
+            // die;
 
             Log::channel(self::LOG_CHANNEL)->debug(self::LOG_PREFIX . ' - Payload constructed', [
                 'kode_transaksi' => $validated['kode_transaksi'],
@@ -408,8 +410,8 @@ class OrderController extends MshController
                         "provider_id"       => $truncate(str_pad($default($item->cara_bayar_id ?? null, '0'), 3, '0', STR_PAD_LEFT), PayloadLength::PROVIDER_ID),
                         "provider_name"     => $truncate($item->cara_bayar_nama ?? '', PayloadLength::PROVIDER_NAME),
                         "order_date"        => $truncate($orderDate, PayloadLength::ORDER_DATE),
-                        "clinician_id"      => $truncate($default($item->dokter_id ?? null, '000'), PayloadLength::CLINICIAN_ID),
-                        "clinician_name"    => $truncate($default($item->dokter_nama ?? null, '000'), PayloadLength::CLINICIAN_NAME),
+                        "clinician_id"      => $truncate($default($item->dokter_perujuk_id ?? $item->dokter_id ?? null, '000'), PayloadLength::CLINICIAN_ID),
+                        "clinician_name"    => $truncate($default($item->dokter_nama ?? $item->dokter_perujuk ?? null, '000'), PayloadLength::CLINICIAN_NAME),
                         "bangsal_id"        => $bangsalID,
                         "bangsal_name"      => $bangsalName,
                         "bed_id"            => $truncate($default($item->bed_id ?? null, '000'), PayloadLength::BED_ID),
@@ -451,6 +453,8 @@ class OrderController extends MshController
                 't_lab_register.cara_bayar_id',
                 't_lab_register.created_at',
                 't_lab_register.dokter_id',
+                't_lab_register.dokter_perujuk_id',
+                't_lab_register.dokter_perujuk',
                 't_lab_register.cito',
                 't_lab_register.created_by',
                 't_pelayanan.id as pelayanan_id',
@@ -461,21 +465,19 @@ class OrderController extends MshController
                 'm_pasien.id as pasien_id',
                 'm_pasien.no_rm',
                 'm_pasien.nama as pasien_nama',
-                DB::raw("
-                    CASE 
-                        WHEN m_pasien.jenis_kelamin = 1 THEN 'L'
-                        WHEN m_pasien.jenis_kelamin = 2 THEN 'P'
-                        ELSE '-' 
-                    END as jenis_kelamin
-                "),
+                DB::raw("CASE 
+                    WHEN m_pasien.jenis_kelamin = 1 THEN 'L'
+                    WHEN m_pasien.jenis_kelamin = 2 THEN 'P'
+                    ELSE '-' 
+                END as jenis_kelamin"),
                 'm_pasien.tanggal_lahir',
-                // 'm_pasien.alamat',
                 DB::raw("SUBSTRING_INDEX(m_pasien.alamat, ' ', 5) as alamat"),
                 'm_pasien.no_telepon_1',
                 'm_pasien.no_telepon_2',
                 'm_pasien.no_identitas',
                 'm_cara_bayar.nama as cara_bayar_nama',
-                'hrd_karyawan.nama as dokter_nama',
+                'dokter.nama as dokter_nama',  // Alias untuk dokter_id
+                'dokter_perujuk.nama as dokter_perujuk_nama',  // Alias untuk dokter_perujuk_id
                 'm_layanan.nama as layanan_nama',
                 'm_kelas.nama as kelas_nama',
                 'm_bed.nama as bed_nama',
@@ -483,28 +485,27 @@ class OrderController extends MshController
                 'm_ruang.nama as ruang_nama',
                 't_front_desk.nama as front_desk_nama',
                 't_front_desk.alamat as front_desk_alamat',
-                DB::raw("
-                    CASE 
-                        WHEN t_front_desk.jenis_kelamin = 1 THEN 'L'
-                        WHEN t_front_desk.jenis_kelamin = 2 THEN 'P'
-                        ELSE '-' 
-                    END as front_desk_jenis_kelamin
-                "),
+                DB::raw("CASE 
+                    WHEN t_front_desk.jenis_kelamin = 1 THEN 'L'
+                    WHEN t_front_desk.jenis_kelamin = 2 THEN 'P'
+                    ELSE '-' 
+                END as front_desk_jenis_kelamin"),
                 't_front_desk.tanggal_lahir as front_desk_tanggal_lahir',
-                DB::raw("
-                    (SELECT GROUP_CONCAT(kode SEPARATOR ',')
-                    FROM m_lab_pemeriksaan 
-                    WHERE id IN (
-                        SELECT pemeriksaan_id 
-                        FROM t_lab_register_pemeriksaan 
-                        WHERE reg_id = t_lab_register.id AND batal = 0
-                    )) AS lab_pemeriksaan
-                ")
+                DB::raw("(
+                        SELECT GROUP_CONCAT(kode SEPARATOR ',')
+                        FROM m_lab_pemeriksaan 
+                        WHERE id IN (
+                            SELECT pemeriksaan_id 
+                            FROM t_lab_register_pemeriksaan 
+                            WHERE reg_id = t_lab_register.id AND batal = 0
+                        )
+                    ) AS lab_pemeriksaan")
             ])
             ->join('t_pelayanan', 't_pelayanan.id', '=', 't_lab_register.pelayanan_id')
             ->leftJoin('m_pasien', 'm_pasien.id', '=', 't_pelayanan.pasien_id')
             ->leftJoin('m_cara_bayar', 'm_cara_bayar.id', '=', 't_lab_register.cara_bayar_id')
-            ->leftJoin('hrd_karyawan', 'hrd_karyawan.id', '=', 't_lab_register.dokter_id')
+            ->leftJoin('hrd_karyawan as dokter', 'dokter.id', '=', 't_lab_register.dokter_id')  // Alias untuk dokter
+            ->leftJoin('hrd_karyawan as dokter_perujuk', 'dokter_perujuk.id', '=', 't_lab_register.dokter_perujuk_id')  // Alias untuk dokter_perujuk
             ->leftJoin('m_layanan', 'm_layanan.id', '=', 't_pelayanan.layanan_id')
             ->leftJoin('m_kelas', 'm_kelas.id', '=', 't_pelayanan.kelas_id')
             ->leftJoin('m_bed', 'm_bed.id', '=', 't_pelayanan.bed_id')
