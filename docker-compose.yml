@@ -6,15 +6,28 @@ services:
       dockerfile: Dockerfile.dev
     working_dir: /var/www
     volumes:
+      # Gunakan cached volume untuk vendor dan node_modules
       - ./:/var/www:delegated
+      - /var/www/vendor
+      - /var/www/node_modules
+      - ./docker/php.ini:/usr/local/etc/php/php.ini
     ports:
       - "8000:8000"
-    command: bash -c "php artisan optimize:clear && php artisan serve --host=0.0.0.0 --port=8000"
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
+      - OPcache_ENABLE=1
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - laravel_net
+
+  # Tambahkan Redis untuk caching
+  redis:
+    image: redis:alpine
+    container_name: laravel_redis
+    ports:
+      - "6379:6379"
     networks:
       - laravel_net
 

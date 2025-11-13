@@ -411,7 +411,7 @@ class OrderController extends MshController
                         "provider_name"     => $truncate($item->cara_bayar_nama ?? '', PayloadLength::PROVIDER_NAME),
                         "order_date"        => $truncate($orderDate, PayloadLength::ORDER_DATE),
                         "clinician_id"      => $truncate($default($item->dokter_perujuk_id ?? $item->dokter_id ?? null, '000'), PayloadLength::CLINICIAN_ID),
-                        "clinician_name"    => $truncate($default($item->dokter_nama ?? $item->dokter_perujuk ?? null, '000'), PayloadLength::CLINICIAN_NAME),
+                        "clinician_name"    => $truncate($default($item->dokter_nama ?? $item->dokter_perujuk_nama ?? null, '000'), PayloadLength::CLINICIAN_NAME),
                         "bangsal_id"        => $bangsalID,
                         "bangsal_name"      => $bangsalName,
                         "bed_id"            => $truncate($default($item->bed_id ?? null, '000'), PayloadLength::BED_ID),
